@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 心と体の根本原因診断</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;600&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-functions-compat.js"></script>
+    
+    <style>
+        :root {
+            --main-pink: #E9A4B8;
+            --support-green: #7A9B7A;
+            --bg-off-white: #F8F7F5;
+            --text-charcoal: #4E4E4E;
+        }
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-off-white);
+            color: var(--text-charcoal);
+        }
+        h1, h2, h3, h4 {
+            font-family: 'Noto Serif JP', serif;
+        }
+        .form-step {
+            display: none;
+        }
+        .form-step.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .custom-radio:checked {
+            background-color: var(--main-pink);
+            border-color: var(--main-pink);
+        }
+        .custom-radio:checked + span {
+            color: var(--text-charcoal);
+            font-weight: 600;
+        }
+        input[type="radio"]:checked + .rating-label {
+            background-color: var(--main-pink);
+            color: white;
+            border-radius: 9999px;
+            font-weight: bold;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid var(--main-pink);
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .auth-check {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-off-white);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <!-- 認証チェック中の表示 -->
+    <div id="auth-check" class="auth-check">
+        <div class="text-center">
+            <div class="loader mx-auto mb-4"></div>
+            <p class="text-gray-600">認証状態を確認しています...</p>
+        </div>
+    </div>
+
+    <div id="main-container" class="container mx-auto max-w-2xl p-4 sm:p-6 pb-24" style="display: none;">
+        
+        <!-- ログアウトボタン -->
+        <div class="text-right mb-4">
+            <button id="logout-button" class="py-2 px-4 border rounded-full text-sm font-medium hover:bg-gray-100">ログアウト</button>
+        </div>
+        
+        <div id="progress-container" class="mb-8">
+            <div class="flex justify-between items-center mb-1">
+                <span id="progress-step" class="text-sm font-semibold" style="color: var(--main-pink);"></span>
+                <span id="progress-percent" class="text-sm font-semibold" style="color: var(--main-pink);"></span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div id="progress-bar" class="h-2 rounded-full transition-all duration-500" style="background-color: var(--main-pink);"></div>
+            </div>
+        </div>
+
+
+        <header id="main-header" class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-semibold" style="color: var(--text-charcoal);">AI 心と体の根本原因診断</h1>
+            <p class="text-gray-600 mt-3 max-w-2xl mx-auto" style="color: var(--text-charcoal);">なぜか続く心と体の不調。その「本当の原因」を知り、根本から解決しませんか？<br>AIがあなたの状態を多角的に分析し、新しい一歩を提案します。</p>
+        </header>
+
+
+        <form id="diag-form">
+            <div id="form-steps">
+                <!-- Step 1: 基本情報 -->
+                <div id="step-1" class="form-step active">
+                    <h2 class="text-2xl font-semibold mb-6 border-b-2 pb-3" style="border-color: var(--main-pink);">Step 1 : あなたについて</h2>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="name" class="block text-md font-medium mb-1">ニックネーム <span class="text-sm" style="color: var(--main-pink);">*必須</span></label>
+                            <input type="text" id="name" name="name" class="mt-1 w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-offset-2" style="--tw-ring-color: var(--main-pink);" required>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                             <div>
+                                <label for="age" class="block text-md font-medium mb-1">年齢</label>
+                                <input type="number" id="age" name="age" class="mt-1 w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-offset-2" style="--tw-ring-color: var(--main-pink);">
+                            </div>
+                            <div>
+                                <label class="block text-md font-medium mb-1">性別</label>
+                                <div class="flex items-center space-x-4 mt-2">
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="gender" value="男性" class="custom-radio w-5 h-5 border-2 border-gray-300 focus:ring-0" style="--tw-ring-offset-color: var(--main-pink);"><span class="transition">男性</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="gender" value="女性" class="custom-radio w-5 h-5 border-2 border-gray-300 focus:ring-0" style="--tw-ring-offset-color: var(--main-pink);"><span class="transition">女性</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="gender" value="その他" class="custom-radio w-5 h-5 border-2 border-gray-300 focus:ring-0" style="--tw-ring-offset-color: var(--main-pink);"><span class="transition">その他</span></label>
+                                </div>
+                            </div>
+                        </div>
+                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div>
+                                <label for="height" class="block text-md font-medium mb-1">身長 (cm)</label>
+                                <input type="number" step="0.1" id="height" name="height" class="mt-1 w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-offset-2" style="--tw-ring-color: var(--main-pink);">
+                            </div>
+                            <div>
+                                <label for="weight" class="block text-md font-medium mb-1">現在体重 (kg)</label>
+                                <input type="number" step="0.1" id="weight" name="weight" class="mt-1 w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-offset-2" style="--tw-ring-color: var(--main-pink);">
+                            </div>
+                        </div>
+                        <div class="bg-white/60 p-4 rounded-lg border border-gray-200">
+                            <h3 class="font-medium text-center text-gray-700 mb-2">体重の目安</h3>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                                <div><span class="text-xs text-gray-500">BMI</span><p id="bmi-val" class="font-bold text-lg">-</p></div>
+                                <div><span class="text-xs text-gray-500">判定</span><p id="bmi-judge" class="font-bold text-lg">-</p></div>
+                                <div><span class="text-xs text-gray-500">標準体重(22)</span><p id="std-weight" class="font-bold text-lg">- kg</p></div>
+                                <div><span class="text-xs text-gray-500">理想体重(20)</span><p id="ideal-weight" class="font-bold text-lg">- kg</p></div>
+                            </div>
+                        </div>
+                         <div>
+                            <label for="target-weight" class="block text-md font-medium mb-1">あなたの目標体重 (kg)</label>
+                            <input type="number" step="0.1" id="target-weight" name="target-weight" class="mt-1 w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-offset-2" style="--tw-ring-color: var(--main-pink);">
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Step 2: 症状チェック -->
+                <div id="step-2" class="form-step">
+                    <h2 class="text-2xl font-semibold mb-6 border-b-2 pb-3" style="border-color: var(--main-pink);">Step 2 : 心と体の声を聞く</h2>
+                    <div class="space-y-6">
+                        <div class="p-5 bg-white/60 rounded-lg border border-gray-200">
+                            <h3 class="font-semibold mb-4 text-lg">身体の不調について (5=深刻 〜 1=無し)</h3>
+                            <div class="space-y-4">
+                               <div class="question-group"><label class="question-label">日中のだるさ・疲労感が強い</label><div class="flex justify-between"><label><input type="radio" name="symptom_b1" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="symptom_b1" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="symptom_b1" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="symptom_b1" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="symptom_b1" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                               <div class="question-group"><label class="question-label">胃もたれ・膨満感を感じる</label><div class="flex justify-between"><label><input type="radio" name="symptom_b2" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="symptom_b2" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="symptom_b2" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="symptom_b2" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="symptom_b2" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                               <div class="question-group"><label class="question-label">便秘・下痢など腸の不調が続く</label><div class="flex justify-between"><label><input type="radio" name="symptom_b3" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="symptom_b3" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="symptom_b3" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="symptom_b3" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="symptom_b3" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                               <div class="question-group"><label class="question-label">風邪・感染症にかかりやすい</label><div class="flex justify-between"><label><input type="radio" name="symptom_b4" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="symptom_b4" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="symptom_b4" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="symptom_b4" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="symptom_b4" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                               <div class="question-group"><label class="question-label">糖尿病など重大な慢性疾患がある、またはその恐れがある</label><div class="flex justify-between"><label><input type="radio" name="symptom_b5" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="symptom_b5" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="symptom_b5" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="symptom_b5" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="symptom_b5" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                            </div>
+                        </div>
+                        <div class="p-5 rounded-lg border" style="background-color: #f0faf0; border-color: #d4e8d4;">
+                            <h3 class="font-semibold mb-4 text-lg" style="color: var(--support-green);">精神の不調（トラウマ反応）について</h3>
+                             <div class="space-y-4">
+                               <div class="question-group"><label class="question-label">怒りやイライラがコントロールできない</label><div class="flex justify-between"><label><input type="radio" name="symptom_b6" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="symptom_b6" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="symptom_b6" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="symptom_b6" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="symptom_b6" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                               <div class="question-group"><label class="question-label">不安・恐怖が頭から離れない</label><div class="flex justify-between"><label><input type="radio" name="symptom_b7" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="symptom_b7" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="symptom_b7" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="symptom_b7" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="symptom_b7" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                               <div class="question-group"><label class="question-label">過去のつらい記憶が突然よみがえる</label><div class="flex justify-between"><label><input type="radio" name="symptom_b8" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="symptom_b8" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="symptom_b8" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="symptom_b8" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="symptom_b8" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                               <div class="question-group"><label class="question-label">自己肯定感が低い／無価値感がある</label><div class="flex justify-between"><label><input type="radio" name="symptom_b9" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="symptom_b9" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="symptom_b9" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="symptom_b9" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="symptom_b9" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                               <div class="question-group"><label class="question-label">気分の浮き沈みが激しい（躁鬱的）</label><div class="flex justify-between"><label><input type="radio" name="symptom_b10" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="symptom_b10" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="symptom_b10" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="symptom_b10" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="symptom_b10" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                               <div class="question-group"><label class="question-label">人付き合いが苦手・億劫に感じる</label><div class="flex justify-between"><label><input type="radio" name="symptom_b11" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="symptom_b11" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="symptom_b11" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="symptom_b11" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="symptom_b11" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Step 3: 食生活 -->
+                <div id="step-3" class="form-step">
+                    <h2 class="text-2xl font-semibold mb-6 border-b-2 pb-3" style="border-color: var(--main-pink);">Step 3 : ふだんの食生活について</h2>
+                    <div class="space-y-6">
+                        <div class="p-5 bg-white/60 rounded-lg border border-gray-200">
+                            <h3 class="font-semibold mb-4 text-lg">動物性食品について (5=よく当てはまる 〜 1=全く当てはまらない)</h3>
+                             <div class="space-y-4">
+                                 <div class="question-group"><label class="question-label">赤身肉・加工肉をよく食べる</label><div class="flex justify-between"><label><input type="radio" name="diet_c1" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c1" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c1" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c1" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c1" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                 <div class="question-group"><label class="question-label">鶏肉をよく食べる</label><div class="flex justify-between"><label><input type="radio" name="diet_c2" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c2" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c2" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c2" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c2" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                 <div class="question-group"><label class="question-label">魚介類をよく食べる</label><div class="flex justify-between"><label><input type="radio" name="diet_c3" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c3" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c3" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c3" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c3" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                 <div class="question-group"><label class="question-label">牛乳・ヨーグルト・チーズなどの乳製品を摂る</label><div class="flex justify-between"><label><input type="radio" name="diet_c4" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c4" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c4" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c4" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c4" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                 <div class="question-group"><label class="question-label">卵を摂る</label><div class="flex justify-between"><label><input type="radio" name="diet_c5" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c5" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c5" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c5" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c5" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                            </div>
+                        </div>
+                        <div class="p-5 bg-white/60 rounded-lg border border-gray-200">
+                            <h3 class="font-semibold mb-4 text-lg">糖質の多い食品について</h3>
+                            <div class="space-y-4">
+                                 <div class="question-group"><label class="question-label">お米（白米、玄米など）をよく食べる</label><div class="flex justify-between"><label><input type="radio" name="diet_c6" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c6" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c6" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c6" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c6" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                 <div class="question-group"><label class="question-label">パン（菓子パン、全粒粉パン含む）をよく食べる</label><div class="flex justify-between"><label><input type="radio" name="diet_c7" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c7" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c7" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c7" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c7" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                 <div class="question-group"><label class="question-label">麺類（パスタ, うどん等）やピザなど小麦製品をよく食べる</label><div class="flex justify-between"><label><input type="radio" name="diet_c8" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c8" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c8" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c8" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c8" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                 <div class="question-group"><label class="question-label">砂糖入り菓子・ジュース・清涼飲料水をよく摂る</label><div class="flex justify-between"><label><input type="radio" name="diet_c9" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c9" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c9" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c9" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c9" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                            </div>
+                        </div>
+                        <div class="p-5 bg-white/60 rounded-lg border border-gray-200">
+                             <h3 class="font-semibold mb-4 text-lg">その他の食習慣について</h3>
+                             <div class="space-y-4">
+                                 <div class="question-group"><label class="question-label">化学調味料・加工食品を避けられていない</label><div class="flex justify-between"><label><input type="radio" name="diet_c10" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c10" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c10" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c10" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c10" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                 <div class="question-group"><label class="question-label">夜20時以降に食事や間食をすることがある</label><div class="flex justify-between"><label><input type="radio" name="diet_c11" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c11" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c11" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c11" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c11" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                 <div class="question-group"><label class="question-label">食事の頻度が1日3回以上だ</label><div class="flex justify-between"><label><input type="radio" name="diet_c12" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c12" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c12" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c12" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c12" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                 <div class="question-group"><label class="question-label">食事の量が多いと感じる、または減らしたいと思っている</label><div class="flex justify-between"><label><input type="radio" name="diet_c13" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="diet_c13" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="diet_c13" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="diet_c13" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="diet_c13" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Step 4: 意欲と優先順位 -->
+                <div id="step-4" class="form-step">
+                    <h2 class="text-2xl font-semibold mb-6 border-b-2 pb-3" style="border-color: var(--main-pink);">Step 4 : あなたの意欲について</h2>
+                     <div class="space-y-6">
+                        <div class="p-5 rounded-lg border" style="background-color: #f0faf0; border-color: #d4e8d4;">
+                            <h3 class="font-semibold mb-4 text-lg" style="color: var(--support-green);">トラウマ解消（トラウマノート）について</h3>
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                 <div>
+                                    <label class="question-label">トラウマノートの経験</label>
+                                    <select name="trauma_d1" class="w-full mt-1 border-gray-300 rounded-lg px-3 py-2 bg-white">
+                                        <option value="">選択してください</option>
+                                        <option value="実践中">毎日・または定期的に実践している</option>
+                                        <option value="時々">時々やっている</option>
+                                        <option value="これから">これから始めたい</option>
+                                        <option value="興味あり">興味はあるが、少し怖い・不安</option>
+                                        <option value="やらない">やらない／知らない</option>
+                                    </select>
+                                 </div>
+                                 <div>
+                                    <label class="question-label">トラウマに向き合う覚悟</label>
+                                    <div class="flex justify-between"><label><input type="radio" name="trauma_d2" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="trauma_d2" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="trauma_d2" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="trauma_d2" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="trauma_d2" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div>
+                                 </div>
+                                  <div>
+                                     <label class="question-label">食改善よりトラウマを優先したいか</label>
+                                    <div class="flex justify-between"><label><input type="radio" name="trauma_d3" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="trauma_d3" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="trauma_d3" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="trauma_d3" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="trauma_d3" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div>
+                                  </div>
+                                  <div>
+                                     <label class="question-label">希望するサポート</label>
+                                    <select name="trauma_d4" class="w-full mt-1 border-gray-300 rounded-lg px-3 py-2 bg-white">
+                                        <option value="">選択してください</option>
+                                        <option value="カウンセラー">専門家（カウンセラー）のサポートが必要</option>
+                                        <option value="グループ">グループでのサポート機会がほしい</option>
+                                        <option value="自己解決">情報だけもらい、自分で解決したい</option>
+                                    </select>
+                                  </div>
+                             </div>
+                        </div>
+                        <div class="p-5 bg-white/60 rounded-lg border border-gray-200">
+                             <h3 class="font-semibold mb-4 text-lg">食改善への意欲 (5=今すぐやりたい 〜 1=まだ無理)</h3>
+                              <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                                 <div>
+                                     <h4 class="font-medium text-gray-700 mb-2">ヴィーガン化（動物食をやめる）</h4>
+                                     <div class="space-y-3">
+                                        <div class="flex flex-col items-start sm:flex-row sm:justify-between sm:items-center"><label class="mb-2 sm:mb-0">肉類(牛,豚,鶏)</label><div class="flex justify-between w-full sm:w-40"><label><input type="radio" name="vegan_e1" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="vegan_e1" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="vegan_e1" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="vegan_e1" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="vegan_e1" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                        <div class="flex flex-col items-start sm:flex-row sm:justify-between sm:items-center"><label class="mb-2 sm:mb-0">魚介類</label><div class="flex justify-between w-full sm:w-40"><label><input type="radio" name="vegan_e2" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="vegan_e2" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="vegan_e2" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="vegan_e2" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="vegan_e2" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                        <div class="flex flex-col items-start sm:flex-row sm:justify-between sm:items-center"><label class="mb-2 sm:mb-0">乳製品</label><div class="flex justify-between w-full sm:w-40"><label><input type="radio" name="vegan_e3" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="vegan_e3" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="vegan_e3" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="vegan_e3" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="vegan_e3" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                        <div class="flex flex-col items-start sm:flex-row sm:justify-between sm:items-center"><label class="mb-2 sm:mb-0">卵</label><div class="flex justify-between w-full sm:w-40"><label><input type="radio" name="vegan_e4" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="vegan_e4" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="vegan_e4" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="vegan_e4" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="vegan_e4" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                     </div>
+                                 </div>
+                                 <div>
+                                     <h4 class="font-medium text-gray-700 mb-2">糖質制限（穀物・砂糖をやめる）</h4>
+                                      <div class="space-y-3">
+                                        <div class="flex flex-col items-start sm:flex-row sm:justify-between sm:items-center"><label class="mb-2 sm:mb-0">お米（白米・玄米など）</label><div class="flex justify-between w-full sm:w-40"><label><input type="radio" name="sugar_e1" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="sugar_e1" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="sugar_e1" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="sugar_e1" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="sugar_e1" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                        <div class="flex flex-col items-start sm:flex-row sm:justify-between sm:items-center"><label class="mb-2 sm:mb-0">パン・麺類(小麦製品)</label><div class="flex justify-between w-full sm:w-40"><label><input type="radio" name="sugar_e2" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="sugar_e2" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="sugar_e2" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="sugar_e2" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="sugar_e2" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                        <div class="flex flex-col items-start sm:flex-row sm:justify-between sm:items-center"><label class="mb-2 sm:mb-0">砂糖・菓子・甘い飲物</label><div class="flex justify-between w-full sm:w-40"><label><input type="radio" name="sugar_e3" value="1" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">1</span></label><label><input type="radio" name="sugar_e3" value="2" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">2</span></label><label><input type="radio" name="sugar_e3" value="3" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">3</span></label><label><input type="radio" name="sugar_e3" value="4" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">4</span></label><label><input type="radio" name="sugar_e3" value="5" class="sr-only"><span class="rating-label w-8 h-8 flex items-center justify-center">5</span></label></div></div>
+                                     </div>
+                                 </div>
+                              </div>
+                        </div>
+                        <div class="p-5 bg-white/60 rounded-lg border border-gray-200">
+                             <h3 class="font-semibold mb-4 text-lg">この1ヶ月の優先順位</h3>
+                             <div>
+                                 <label class="question-label">最も優先したいこと</label>
+                                <div class="space-y-2">
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="priority_f1" value="食事" class="custom-radio w-5 h-5 border-2 border-gray-300 focus:ring-0" style="--tw-ring-offset-color: var(--main-pink);"><span class="transition">食事改善に集中したい</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="priority_f1" value="トラウマ" class="custom-radio w-5 h-5 border-2 border-gray-300 focus:ring-0" style="--tw-ring-offset-color: var(--main-pink);"><span class="transition">トラウマ解消に集中したい</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="priority_f1" value="両方" class="custom-radio w-5 h-5 border-2 border-gray-300 focus:ring-0" style="--tw-ring-offset-color: var(--main-pink);"><span class="transition">両方ともバランス良く進めたい</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="priority_f1" value="未定" class="custom-radio w-5 h-5 border-2 border-gray-300 focus:ring-0" style="--tw-ring-offset-color: var(--main-pink);"><span class="transition">診断結果を見て決めたい</span></label>
+                                </div>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div id="navigation-buttons" class="pt-6 flex justify-between items-center">
+                <button type="button" id="prev-btn" class="text-gray-600 font-bold py-3 px-8 rounded-full hover:bg-gray-200 transition-colors"> &larr; 戻る</button>
+                <button type="button" id="next-btn" class="text-white font-bold py-3 px-8 rounded-full shadow-lg hover:opacity-90 transition-transform transform hover:scale-105" style="background-color: var(--main-pink);">次へ進む &rarr;</button>
+                <button type="submit" id="submit-button" class="w-full text-white font-bold py-4 px-12 rounded-full shadow-lg hover:opacity-90 focus:outline-none focus:ring-4 transition-transform transform hover:scale-105 hidden" style="background-color: var(--main-pink); --tw-ring-color: #f7d8e1;">
+                    診断してプランを受け取る
+                </button>
+            </div>
+        </form>
+        
+        <div id="result-area" class="text-center mt-8 hidden">
+             <div class="flex justify-center mb-4"> <div class="loader"></div> </div>
+            <p id="result-message" class="font-medium text-lg"></p>
+        </div>
+        
+        <div id="report-display-area" class="hidden">
+             <div class="report-section fade-in">
+                 <h2 class="text-2xl font-bold text-center text-gray-800 mb-2">診断レポート</h2>
+                 <p class="text-center text-gray-600 mb-6" id="report-user-name"></p>
+                 <div class="p-6 rounded-lg" style="background-color: rgba(233, 164, 184, 0.1);">
+                    <h3 class="text-lg font-semibold border-b-2 pb-2 mb-3" style="color: var(--main-pink); border-color: var(--main-pink);">AIからのメッセージ</h3>
+                    <p id="report-summary" class="text-gray-700 whitespace-pre-wrap leading-relaxed"></p>
+                 </div>
+             </div>
+             <div id="report-analysis-section" class="report-section fade-in" style="animation-delay: 0.2s;">
+                <h3 class="text-xl font-bold text-gray-800 text-center mb-6">あなたの現状分析</h3>
+                <div id="report-analysis" class="space-y-6">
+                    <!-- Analysis will be inserted here -->
+                </div>
+            </div>
+             <div class="report-section fade-in" style="animation-delay: 0.4s;">
+                 <h3 class="text-xl font-bold text-gray-800 text-center mb-6">あなたへの推奨プラン</h3>
+                 <div id="report-plans" class="space-y-8">
+                     <!-- ここにプランが動的に挿入されます -->
+                 </div>
+             </div>
+             
+             <div class="fade-in mt-12 space-y-10" style="animation-delay: 0.6s;">
+                <div class="text-center">
+                    <h3 class="text-xl font-bold mb-3" style="color: var(--main-pink);">「エンドゥ・オンラインサロン」に参加されていない皆さんへ</h3>
+                    <p class="text-gray-700 mb-6 max-w-xl mx-auto">
+                        この診断ツールは、元々「エンドゥ・オンラインサロン」の参加者向けに開発されたものですが、より多くの方に自分と向き合うきっかけを提供したいと考え、この度、外部にも公開することにしました。<br>
+                        もし、あなたが偶然この診断に出会い、結果に心当たりがあったなら、それは変化のサインかもしれません。一人で悩まず、専門家や仲間と共に着実に変化を遂げたいなら、私たちのオンラインサロンがあなたを待っています。
+                    </p>
+                    <a href="https://pink677956.studio.site/" target="_blank" rel="noopener noreferrer" class="inline-block text-white font-bold py-3 px-10 rounded-full shadow-lg hover:opacity-90 transition-all duration-300 transform hover:scale-110" style="background-color: var(--main-pink);">
+                        エンドゥ・オンラインサロン2025年一期生募集を詳しく見る
+                    </a>
+                </div>
+            
+                <div class="text-center">
+                    <h3 class="text-xl font-bold mb-3" style="color: var(--support-green);">特に、トラウマ解消に強く関心がある方へ</h3>
+                    <p class="text-gray-700 mb-6 max-w-xl mx-auto">
+                        今回の診断で、特に感情面や過去の経験と向き合うことの重要性が示唆されたあなたへ。専門家による、より深いサポートをご案内します。<br>
+                        「かずみのトラウマノート解消」サロンは、トラウマ解消を専門的に扱っています。エンドゥ・オンラインサロンと併用することで、食事と心の両面から、より効果的にアプローチできます。もちろん、こちらのサロンから始めてみるのも素晴らしい選択です。
+                    </p>
+                    <a href="https://lounge.dmm.com/detail/9373/index/" target="_blank" rel="noopener noreferrer" class="inline-block text-white font-bold py-3 px-10 rounded-full shadow-lg hover:opacity-90 transition-all duration-300 transform hover:scale-110" style="background-color: var(--support-green);">
+                        「かずみのトラウマ解消ノート」サロンを詳しく見る
+                    </a>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Firebase初期化
+            const firebaseConfig = {
+                apiKey: "AIzaSyCSK2XMhrPQbZ8J1y-Kz3YCoU45rDKv1bM",
+                authDomain: "trauma-note-app.firebaseapp.com",
+                projectId: "trauma-note-app",
+                storageBucket: "trauma-note-app.appspot.com",
+                messagingSenderId: "643740992546",
+                appId: "1:643740992546:web:dba603fed8f73b09c9f67b"
+            };
+
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+
+            const auth = firebase.auth();
+            const db = firebase.firestore();
+            const functions = firebase.functions();
+
+            const authCheckElement = document.getElementById('auth-check');
+            const mainContainer = document.getElementById('main-container');
+            const logoutButton = document.getElementById('logout-button');
+
+            // 認証状態の確認
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    authCheckElement.style.display = 'none';
+                    mainContainer.style.display = 'block';
+                } else {
+                    // 未ログインの場合、index.htmlにリダイレクト
+                    window.location.href = 'index.html';
+                }
+            });
+
+            // ログアウト機能
+            logoutButton.addEventListener('click', () => {
+                auth.signOut();
+            });
+
+            const form = document.getElementById('diag-form');
+            const formStepsContainer = document.getElementById('form-steps');
+            const steps = Array.from(document.querySelectorAll('.form-step'));
+            const nextBtn = document.getElementById('next-btn');
+            const prevBtn = document.getElementById('prev-btn');
+            const submitButton = document.getElementById('submit-button');
+            const navigationButtons = document.getElementById('navigation-buttons');
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            const progressStep = document.getElementById('progress-step');
+            const progressPercent = document.getElementById('progress-percent');
+            const heightInput = document.getElementById('height');
+            const weightInput = document.getElementById('weight');
+            const mainHeader = document.getElementById('main-header');
+            const resultArea = document.getElementById('result-area');
+            const resultMessage = document.getElementById('result-message');
+            const reportDisplayArea = document.getElementById('report-display-area');
+
+
+            let currentStep = 0;
+
+
+            const updateFormState = () => {
+                steps.forEach((step, index) => {
+                    step.classList.toggle('active', index === currentStep);
+                });
+
+
+                progressStep.textContent = `Step ${currentStep + 1} / ${steps.length}`;
+                const percent = Math.round(((currentStep + 1) / steps.length) * 100);
+                progressPercent.textContent = `${percent}%`;
+                progressBar.style.width = `${percent}%`;
+
+
+                prevBtn.style.visibility = currentStep === 0 ? 'hidden' : 'visible';
+                const isLastStep = currentStep === steps.length - 1;
+                submitButton.classList.toggle('hidden', !isLastStep);
+                nextBtn.classList.toggle('hidden', isLastStep);
+            };
+
+
+            nextBtn.addEventListener('click', () => {
+                if (currentStep < steps.length - 1) {
+                    currentStep++;
+                    window.scrollTo(0, 0);
+                    updateFormState();
+                }
+            });
+
+
+            prevBtn.addEventListener('click', () => {
+                if (currentStep > 0) {
+                    currentStep--;
+                    window.scrollTo(0, 0);
+                    updateFormState();
+                }
+            });
+
+
+            form.addEventListener('submit', async (e) => {
+                 e.preventDefault();
+                 formStepsContainer.classList.add('hidden');
+                 navigationButtons.classList.add('hidden');
+                 progressContainer.classList.add('hidden');
+                 mainHeader.classList.add('hidden');
+                
+                 resultArea.classList.remove('hidden');
+                 resultMessage.textContent = 'AIがあなたの状態を分析し、レポートを作成中です...';
+                 window.scrollTo(0, 0);
+
+                 try {
+                     const user = auth.currentUser;
+                     const { postData, scores } = collectAndScoreData();
+                     const prompt = createPrompt(postData, scores);
+                     const aiReport = await generateAiReport(prompt);
+                     
+                     // 診断結果をFirestoreに保存
+                     await db.collection('users').doc(user.uid).collection('ai_diagnoses').add({
+                         report: aiReport,
+                         scores: scores,
+                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                     });
+                    
+                     displayReport(postData.name, aiReport);
+                     resultArea.classList.add('hidden');
+                     reportDisplayArea.classList.remove('hidden');
+
+                 } catch (error) {
+                     console.error('処理中にエラー:', error);
+                     resultArea.classList.add('hidden'); 
+                     formStepsContainer.classList.remove('hidden');
+                     navigationButtons.classList.remove('hidden');
+                     progressContainer.classList.remove('hidden');
+                     mainHeader.classList.remove('hidden');
+                     updateFormState();
+                     alert(`レポートの生成中にエラーが発生しました: ${error.message}\nお手数ですが、もう一度お試しください。`);
+                 }
+            });
+            
+            const calculateBmi = () => {
+                const height = parseFloat(heightInput.value);
+                const weight = parseFloat(weightInput.value);
+                const bmiValEl = document.getElementById('bmi-val');
+                const bmiJudgeEl = document.getElementById('bmi-judge');
+                const stdWeightEl = document.getElementById('std-weight');
+                const idealWeightEl = document.getElementById('ideal-weight');
+
+
+                if (height > 0 && weight > 0) {
+                    const heightInM = height / 100;
+                    const bmi = weight / (heightInM * heightInM);
+                    bmiValEl.textContent = bmi.toFixed(1);
+
+
+                    if (bmi < 18.5) bmiJudgeEl.textContent = '痩せぎみ';
+                    else if (bmi < 25) bmiJudgeEl.textContent = '標準';
+                    else if (bmi < 30) bmiJudgeEl.textContent = '肥満気味';
+                    else bmiJudgeEl.textContent = '肥満';
+
+
+                    stdWeightEl.textContent = (22 * heightInM * heightInM).toFixed(1) + ' kg';
+                    idealWeightEl.textContent = (20 * heightInM * heightInM).toFixed(1) + ' kg';
+                } else {
+                     bmiValEl.textContent = '-';
+                     bmiJudgeEl.textContent = '-';
+                     stdWeightEl.textContent = '- kg';
+                     idealWeightEl.textContent = '- kg';
+                }
+            }
+            heightInput.addEventListener('input', calculateBmi);
+            weightInput.addEventListener('input', calculateBmi);
+            
+            const displayReport = (userName, report) => {
+                document.getElementById('report-user-name').textContent = `${userName}さんのための`;
+                document.getElementById('report-summary').textContent = report.summary;
+
+
+                const analysis = report.analysis;
+                const analysisContainer = document.getElementById('report-analysis');
+                const analysisSection = document.getElementById('report-analysis-section');
+                analysisContainer.innerHTML = ''; 
+
+
+                if (analysis) {
+                    const analysisHtml = `
+                        ${analysis.insight ? `<div class="p-5 rounded-lg border" style="background-color: #fefce8; border-color: #fde68a;"><h4 class="font-semibold text-lg mb-2" style="color: #a16207;">💡 全体的な洞察と仮説</h4><p class="text-gray-700 whitespace-pre-wrap leading-relaxed">${analysis.insight}</p></div>` : ''}
+                        ${analysis.physical ? `<div class="p-5 rounded-lg border" style="background-color: #f0f9ff; border-color: #e0f2fe;"><h4 class="font-semibold text-lg mb-2" style="color: #0c4a6e;">身体の状態について</h4><p class="text-gray-700 whitespace-pre-wrap leading-relaxed">${analysis.physical}</p></div>` : ''}
+                        ${analysis.mental ? `<div class="p-5 rounded-lg border" style="background-color: #f0fdf4; border-color: #dcfce7;"><h4 class="font-semibold text-lg mb-2" style="color: var(--support-green);">心の状態について</h4><p class="text-gray-700 whitespace-pre-wrap leading-relaxed">${analysis.mental}</p></div>` : ''}
+                        ${analysis.diet ? `<div class="p-5 rounded-lg border" style="background-color: #fff7ed; border-color: #fed7aa;"><h4 class="font-semibold text-lg mb-2" style="color: #9a3412;">食生活について</h4><p class="text-gray-700 whitespace-pre-wrap leading-relaxed">${analysis.diet}</p></div>` : ''}
+                        ${analysis.motivation ? `<div class="p-5 rounded-lg border" style="background-color: #fdf2f8; border-color: #fbcfe8;"><h4 class="font-semibold text-lg mb-2" style="color: #9d2667;">あなたの意欲について</h4><p class="text-gray-700 whitespace-pre-wrap leading-relaxed">${analysis.motivation}</p></div>` : ''}
+                    `;
+                    analysisContainer.innerHTML = analysisHtml;
+                    analysisSection.classList.remove('hidden');
+                } else {
+                    analysisSection.classList.add('hidden');
+                }
+
+
+                const plansContainer = document.getElementById('report-plans');
+                plansContainer.innerHTML = ''; 
+
+
+                report.plans.forEach(plan => {
+                    const planHtml = `
+                        <div class="border-l-4 pl-6" style="border-color: var(--main-pink);">
+                            <h4 class="text-xl font-semibold text-gray-800 mb-2">${plan.title}</h4>
+                            <p class="text-gray-600 mb-4">${plan.description}</p>
+                            <ul class="space-y-3 list-disc list-inside text-gray-700">
+                               <li><strong>Week1:</strong> ${plan.W1}</li>
+                               <li><strong>Week2:</strong> ${plan.W2}</li>
+                               <li><strong>Week3:</strong> ${plan.W3}</li>
+                               <li><strong>Week4:</strong> ${plan.W4}</li>
+                            </ul>
+                        </div>
+                    `;
+                    plansContainer.innerHTML += planHtml;
+                });
+            };
+
+
+            const collectAndScoreData = () => {
+                const formData = new FormData(form);
+                const postData = Object.fromEntries(formData.entries());
+                
+                const getScore = (name) => parseInt(formData.get(name) || 1, 10);
+
+
+                const scores = {
+                    physicalSymptom: getScore('symptom_b1') + getScore('symptom_b2') + getScore('symptom_b3') + getScore('symptom_b4') + getScore('symptom_b5'),
+                    mentalSymptom: getScore('symptom_b6') + getScore('symptom_b7') + getScore('symptom_b8') + getScore('symptom_b9') + getScore('symptom_b10') + getScore('symptom_b11'),
+                    animalProduct: getScore('diet_c1') + getScore('diet_c2') + getScore('diet_c3') + getScore('diet_c4') + getScore('diet_c5'),
+                    sugarIntake: getScore('diet_c6') + getScore('diet_c7') + getScore('diet_c8') + getScore('diet_c9'),
+                    badHabits: getScore('diet_c10') + getScore('diet_c11') + getScore('diet_c12') + getScore('diet_c13'),
+                    traumaMotivation: getScore('trauma_d2'),
+                    traumaPriority: getScore('trauma_d3'),
+                    veganMotivation: getScore('vegan_e1') + getScore('vegan_e2') + getScore('vegan_e3') + getScore('vegan_e4'),
+                    sugarFreeMotivation: getScore('sugar_e1') + getScore('sugar_e2') + getScore('sugar_e3')
+                };
+                
+                return { postData, scores };
+            };
+
+
+            const createPrompt = (data, scores) => {
+                return `
+# あなたの役割と哲学
+あなたは、食事とトラウマ解消を通じて利用者のウェルネスを支援する専門アドバイザーです。以下の「基本哲学」と「スコア解釈ガイド」をあなたの思考のOSとし、すべての分析と提案を行ってください。
+
+
+## 基本哲学（最重要ルール）
+1.  **食事と心の繋がり:** 多くの身体的・精神的な不調の根源は、食生活（特に糖質と動物性食品）と、過去の未解決なトラウマが複雑に絡み合って生じている。
+2.  **トラウマと食行動:** 未解決なトラウマやストレスは、過食（量・頻度の増加）や、特定の食品への依存を引き起こす主要な原因となりうる。したがって、体重や食生活の悩みは、単なる習慣の問題ではなく、心のSOSである可能性がある。
+3.  **トラウマノートの原則:** トラウマ解消の唯一の推奨手段は「トラウマノート」である。これは、トラウマの内容とその時の感情を書き出し、繰り返し読むことでトラウマを客観的な「思い出」に変える手法である。心理学的な解釈や他の手法（読書、一般的な瞑想など）は混乱を招くため、提案してはならない。
+
+
+## スコア解釈ガイド（絶対厳守）
+- **課題スコア (症状・食生活):** 点数が**低いほど良い状態**を示します。例えば、糖質摂取スコアの最低値は4点（4問×1点）であり、これは「完璧な状態」として**必ず称賛**してください。動物性食品スコアの最低値は5点です。スコアが高いほど、課題が大きいことを示します。
+- **意欲スコア:** 点数が**高いほど、その取り組みへの意欲が高い**ことを示し、これは非常にポジティブな要素として**必ず称賛**してください。
+
+
+# ユーザー情報
+## 基本プロフィール
+- ニックネーム: ${data.name}
+- 年齢: ${data.age || '未設定'}
+- 性別: ${data.gender || '未設定'}
+- 目標体重: ${data['target-weight'] || '未設定'}kg
+
+
+## 課題スコア
+- 身体的症状スコア: ${scores.physicalSymptom} / 25
+- 精神的症状スコア: ${scores.mentalSymptom} / 30
+- 動物性食品の摂取スコア: ${scores.animalProduct} / 25
+- 糖質の摂取スコア: ${scores.sugarIntake} / 20
+- 乱れた食習慣スコア: ${scores.badHabits} / 20
+
+
+## 意欲スコア
+- トラウマ解消への覚悟: ${scores.traumaMotivation} / 5
+- ヴィーガン化への意欲: ${scores.veganMotivation} / 20
+- 糖質制限への意欲: ${scores.sugarFreeMotivation} / 15
+
+
+## 優先順位に関する回答
+- 食改善よりトラウマを優先したい度合い (1=食事優先, 5=トラウマ優先): ${scores.traumaPriority}
+- 自己申告の優先順位: ${data.priority_f1 || '未設定'}
+- トラウマノート経験: ${data.trauma_d1 || '未設定'}
+
+
+# 指示
+上記の情報を基に、以下のルールに従ってJSON形式で回答を生成してください。
+
+
+1.  **統合的な現状分析 (analysis):** 「基本哲学」と「スコア解釈ガイド」に基づき、ユーザーの回答全体を総合的に読み解き、以下の各項目について、専門的な洞察を記述せよ。単なるスコアの評価ではなく、**各項目の関連性**を指摘することが最も重要である。
+    -   **insight (深層的な洞察と仮説):** 最も重要なパート。全ての情報を統合し、ユーザーの課題の**根本原因に関する仮説**を立てる。「${data.name}さんの回答全体を拝見して、最も注目すべき点は…」から始め、専門家としての見立てを2〜3文で述べる。**例：身体症状スコアが低いのに、乱れた食習慣スコアが高く、体重を気にしている場合、「素晴らしい健康状態ですが、食事の量や頻度にお悩みとのこと。その背景には、ご自身でも気づいていない心のストレスが関係しているのかもしれません。食事のコントロールと並行して、トラウマノートでご自身の心と向き合う時間が、目標達成への一番の近道になる可能性があります」というように、矛盾点や背景を指摘する。**
+    -   **physical (身体の状態):** 身体的症状スコアに基づき、体がどのようなサインを出しているかを解説。**スコア解釈ガイドに従い、**スコアが低い(例: 5-10)場合は「素晴らしい状態です」と称賛し、高い(例: 20以上)場合は課題があることを優しく指摘する。
+    -   **mental (心の状態):** 精神的症状スコアに基づき、心の状態について解説。**スコア解釈ガイドに従い、**スコアが低い場合でも「多くの方が自覚のないストレスを抱えています」と優しく触れる。スコアが高い場合は、トラウマの可能性に言及し、「それはあなただけが特別なのではなく、多くの人が同じように感じています」と安心感を与える。
+    -   **diet (食生活の評価):** 各食事スコアを評価。**スコア解釈ガイドに従い、スコアが低い（＝良い習慣）項目は具体的に褒めること。例えば糖質スコアが4点なら「糖質を完璧にコントロールできており、素晴らしいです！」と必ず称賛する。** スコアが高い項目は、「こういった食生活が、先ほどの〇〇といった身体の症状や、〇〇といった心の状態に影響を与えている可能性があります」と、**症状と食事を具体的に結びつけて**解説する。
+    -   **motivation (意欲の評価):** 意欲スコアを評価する。**スコア解釈ガイドに従い、**特に高い意欲（例: 5段階評価で4や5）を示している項目があれば、「〇〇への意欲が非常に高く、素晴らしいです！その気持ちを大切にしましょう」と力強く称賛する。
+
+
+2.  **共感と要約 (summary):** 分析結果を踏まえ、ユーザーに共感し、診断結果をポジティブな言葉で要約する。前向きな変化への期待感を伝える。
+
+
+3.  **2つのプラン提案 (plans):** 分析とユーザーの意欲を考慮し、最も効果的だと思われる2つの異なる「1ヶ月改善プラン」を提案する。
+    - **トラウマ集中プランのルール:** 精神症状スコアが高く、かつ本人がトラウマ優先を望んでいる場合、**必ず「トラウマノート集中プラン」を提案すること。** その際、「トラウマに向き合うには大きなエネルギーが必要なため、この期間は食事のことは少し忘れても大丈夫です」と伝え、食事の課題は「サロンで食事方法について調べる」「まずは1日だけ試してみる」など、ごく軽いものに限定する。
+    - **提案内容の厳格化:** プランの内容は**「ヴィーガン、糖質制限、食事量・頻度、トラウマノート」に関する具体的なアクションのみ**とする。一般的な瞑想、読書、専門家以外への相談といった、このサロンの哲学に反する提案は**絶対に含めないこと。**
+
+
+4.  **食事に関する重要ルール:**
+    -   **穀物とタンパク質:** 糖質制限を提案する際は、**玄米や全粒粉も含め、全ての穀物（米、パン、麺類）は推奨しない。** 代わりに、**「穀物の代替として、タンパク質が豊富な豆類（大豆、レンズ豆、ひよこ豆）、豆腐、ナッツ類を食事に取り入れる」**という提案を必ず含める。
+    -   **食事頻度:** **朝食を食べる、1日3食といった常識を提案に含めず、**「1日2食以下」「空腹でなければ無理に食べない」という考えを尊重する。
+    -   **ヴィーガン原則:** 提案する食事内容は、**いかなる動物性食品（肉、魚、乳製品、卵、はちみつ等）も含まない、完全なヴィーガン**でなければならない。チーズの代わりにナッツ類などを提案する。これらのルールは絶対である。
+
+
+# 出力形式
+\`\`\`json
+{
+  "summary": "（ここに励ましと要約）",
+  "analysis": {
+      "insight": "（最も重要な洞察と仮説）",
+      "physical": "（身体についての客観的な評価）",
+      "mental": "（心についての客観的な評価）",
+      "diet": "（食生活が心身に与える影響の解説）",
+      "motivation": "（意欲についての評価と称賛）"
+  },
+  "plans": [
+    {
+      "title": "（プラン1のタイトル）",
+      "description": "...",
+      "W1": "...", "W2": "...", "W3": "...", "W4": "..."
+    },
+    {
+      "title": "（プラン2のタイトル）",
+      "description": "...",
+      "W1": "...", "W2": "...", "W3": "...", "W4": "..."
+    }
+  ]
+}
+\`\`\`
+`;
+            };
+
+
+            const generateAiReport = async (prompt) => {
+                try {
+                    const generateAiReport = functions.httpsCallable('generateAiReport');
+                    const result = await generateAiReport({ prompt });
+                    return result.data;
+                } catch (error) {
+                    console.error('AI報告書生成エラー:', error);
+                    throw new Error('AI報告書の生成に失敗しました。');
+                }
+            };
+            
+            updateFormState();
+        });
+    </script>
+</body>
+</html>

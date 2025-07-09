@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>進捗管理アプリ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;600&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        :root {
+            --main-pink: #E9A4B8;
+            --support-green: #7A9B7A;
+            --bg-off-white: #F8F7F5;
+            --text-charcoal: #4E4E4E;
+        }
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-off-white);
+            color: var(--text-charcoal);
+        }
+        h1, h2, h3, h4 {
+            font-family: 'Noto Serif JP', serif;
+        }
+        .auth-check {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-off-white);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid var(--main-pink);
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background-color: #e5e7eb;
+            border: 1px solid #e5e7eb;
+        }
+        .calendar-day {
+            background-color: white;
+            padding: 8px;
+            min-height: 60px;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .calendar-day:hover {
+            background-color: #f3f4f6;
+        }
+        .calendar-day.today {
+            background-color: #fef3c7;
+        }
+        .calendar-day.other-month {
+            background-color: #f9fafb;
+            color: #9ca3af;
+        }
+        .calendar-day.has-record {
+            background-color: #ecfdf5;
+            border-left: 4px solid var(--support-green);
+        }
+        .mood-indicator {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .mood-very-good { background-color: #10b981; }
+        .mood-good { background-color: #34d399; }
+        .mood-neutral { background-color: #fbbf24; }
+        .mood-bad { background-color: #f97316; }
+        .mood-very-bad { background-color: #ef4444; }
+        .record-form {
+            background-color: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+        .rating-button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #e5e7eb;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        .rating-button:hover {
+            border-color: var(--main-pink);
+        }
+        .rating-button.selected {
+            background-color: var(--main-pink);
+            color: white;
+            border-color: var(--main-pink);
+        }
+        .record-details {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 認証チェック中の表示 -->
+    <div id="auth-check" class="auth-check">
+        <div class="text-center">
+            <div class="loader mx-auto mb-4"></div>
+            <p class="text-gray-600">認証状態を確認しています...</p>
+        </div>
+    </div>
+
+    <div id="main-container" class="container mx-auto max-w-4xl p-4 sm:p-6" style="display: none;">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-semibold text-gray-800">進捗管理</h1>
+                <p class="text-gray-600 mt-2">日々の食生活・体調・気分を記録しましょう</p>
+            </div>
+            <div class="flex gap-4">
+                <a href="index.html" class="py-2 px-4 border rounded-full text-sm font-medium hover:bg-gray-100">ホーム</a>
+                <button id="logout-button" class="py-2 px-4 border rounded-full text-sm font-medium hover:bg-gray-100">ログアウト</button>
+            </div>
+        </header>
+
+        <!-- 今日の記録フォーム -->
+        <div class="record-form">
+            <h2 class="text-xl font-semibold mb-4">今日の記録</h2>
+            <div id="today-date" class="text-gray-600 mb-6"></div>
+            
+            <form id="record-form">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- 食生活 -->
+                    <div>
+                        <h3 class="font-semibold mb-3">食生活</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">動物性食品の摂取</label>
+                                <select name="animal_food" class="w-full border rounded-lg px-3 py-2">
+                                    <option value="">選択してください</option>
+                                    <option value="none">摂取していない</option>
+                                    <option value="little">少し摂取した</option>
+                                    <option value="moderate">普通に摂取した</option>
+                                    <option value="much">多く摂取した</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">糖質の摂取</label>
+                                <select name="sugar_intake" class="w-full border rounded-lg px-3 py-2">
+                                    <option value="">選択してください</option>
+                                    <option value="none">摂取していない</option>
+                                    <option value="little">少し摂取した</option>
+                                    <option value="moderate">普通に摂取した</option>
+                                    <option value="much">多く摂取した</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">食事回数</label>
+                                <select name="meal_frequency" class="w-full border rounded-lg px-3 py-2">
+                                    <option value="">選択してください</option>
+                                    <option value="1">1回</option>
+                                    <option value="2">2回</option>
+                                    <option value="3">3回</option>
+                                    <option value="4">4回以上</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 体調 -->
+                    <div>
+                        <h3 class="font-semibold mb-3">体調</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">疲労感 (1=なし 〜 5=強い)</label>
+                                <div class="flex gap-2">
+                                    <button type="button" class="rating-button" data-name="fatigue" data-value="1">1</button>
+                                    <button type="button" class="rating-button" data-name="fatigue" data-value="2">2</button>
+                                    <button type="button" class="rating-button" data-name="fatigue" data-value="3">3</button>
+                                    <button type="button" class="rating-button" data-name="fatigue" data-value="4">4</button>
+                                    <button type="button" class="rating-button" data-name="fatigue" data-value="5">5</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">消化の調子 (1=悪い 〜 5=良い)</label>
+                                <div class="flex gap-2">
+                                    <button type="button" class="rating-button" data-name="digestion" data-value="1">1</button>
+                                    <button type="button" class="rating-button" data-name="digestion" data-value="2">2</button>
+                                    <button type="button" class="rating-button" data-name="digestion" data-value="3">3</button>
+                                    <button type="button" class="rating-button" data-name="digestion" data-value="4">4</button>
+                                    <button type="button" class="rating-button" data-name="digestion" data-value="5">5</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">睡眠の質 (1=悪い 〜 5=良い)</label>
+                                <div class="flex gap-2">
+                                    <button type="button" class="rating-button" data-name="sleep" data-value="1">1</button>
+                                    <button type="button" class="rating-button" data-name="sleep" data-value="2">2</button>
+                                    <button type="button" class="rating-button" data-name="sleep" data-value="3">3</button>
+                                    <button type="button" class="rating-button" data-name="sleep" data-value="4">4</button>
+                                    <button type="button" class="rating-button" data-name="sleep" data-value="5">5</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 気分 -->
+                    <div>
+                        <h3 class="font-semibold mb-3">気分</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">総合的な気分 (1=とても悪い 〜 5=とても良い)</label>
+                                <div class="flex gap-2">
+                                    <button type="button" class="rating-button" data-name="mood" data-value="1">1</button>
+                                    <button type="button" class="rating-button" data-name="mood" data-value="2">2</button>
+                                    <button type="button" class="rating-button" data-name="mood" data-value="3">3</button>
+                                    <button type="button" class="rating-button" data-name="mood" data-value="4">4</button>
+                                    <button type="button" class="rating-button" data-name="mood" data-value="5">5</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">ストレス感 (1=なし 〜 5=強い)</label>
+                                <div class="flex gap-2">
+                                    <button type="button" class="rating-button" data-name="stress" data-value="1">1</button>
+                                    <button type="button" class="rating-button" data-name="stress" data-value="2">2</button>
+                                    <button type="button" class="rating-button" data-name="stress" data-value="3">3</button>
+                                    <button type="button" class="rating-button" data-name="stress" data-value="4">4</button>
+                                    <button type="button" class="rating-button" data-name="stress" data-value="5">5</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">メモ（任意）</label>
+                                <textarea name="memo" placeholder="今日の振り返りや気になることを記録..." class="w-full border rounded-lg px-3 py-2 h-20"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end mt-8">
+                    <button type="submit" class="px-6 py-2 text-white font-bold rounded-full shadow-lg hover:opacity-90 transition" style="background-color: var(--main-pink);">
+                        今日の記録を保存
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- カレンダー表示 -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold">記録カレンダー</h2>
+                <div class="flex gap-2">
+                    <button id="prev-month" class="px-3 py-1 border rounded hover:bg-gray-100">&larr;</button>
+                    <span id="current-month" class="px-4 py-1 font-medium"></span>
+                    <button id="next-month" class="px-3 py-1 border rounded hover:bg-gray-100">&rarr;</button>
+                </div>
+            </div>
+            
+            <div class="calendar-grid">
+                <div class="calendar-day font-semibold text-center py-2 bg-gray-100">日</div>
+                <div class="calendar-day font-semibold text-center py-2 bg-gray-100">月</div>
+                <div class="calendar-day font-semibold text-center py-2 bg-gray-100">火</div>
+                <div class="calendar-day font-semibold text-center py-2 bg-gray-100">水</div>
+                <div class="calendar-day font-semibold text-center py-2 bg-gray-100">木</div>
+                <div class="calendar-day font-semibold text-center py-2 bg-gray-100">金</div>
+                <div class="calendar-day font-semibold text-center py-2 bg-gray-100">土</div>
+                <div id="calendar-days"></div>
+            </div>
+        </div>
+
+        <!-- 記録詳細モーダル -->
+        <div id="record-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-lg max-w-md w-full p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold" id="modal-date"></h3>
+                    <button id="close-modal" class="text-gray-500 hover:text-gray-700">&times;</button>
+                </div>
+                <div id="modal-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Firebase初期化
+            const firebaseConfig = {
+                apiKey: "AIzaSyCSK2XMhrPQbZ8J1y-Kz3YCoU45rDKv1bM",
+                authDomain: "trauma-note-app.firebaseapp.com",
+                projectId: "trauma-note-app",
+                storageBucket: "trauma-note-app.appspot.com",
+                messagingSenderId: "643740992546",
+                appId: "1:643740992546:web:dba603fed8f73b09c9f67b"
+            };
+
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+
+            const auth = firebase.auth();
+            const db = firebase.firestore();
+            
+            let currentUser = null;
+            let currentDate = new Date();
+            let records = {};
+
+            const authCheckElement = document.getElementById('auth-check');
+            const mainContainer = document.getElementById('main-container');
+            const logoutButton = document.getElementById('logout-button');
+            const recordForm = document.getElementById('record-form');
+            const todayDateElement = document.getElementById('today-date');
+            const currentMonthElement = document.getElementById('current-month');
+            const prevMonthButton = document.getElementById('prev-month');
+            const nextMonthButton = document.getElementById('next-month');
+            const calendarDaysContainer = document.getElementById('calendar-days');
+            const recordModal = document.getElementById('record-modal');
+            const closeModal = document.getElementById('close-modal');
+            const modalDate = document.getElementById('modal-date');
+            const modalContent = document.getElementById('modal-content');
+
+            // 認証状態の確認
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    currentUser = user;
+                    authCheckElement.style.display = 'none';
+                    mainContainer.style.display = 'block';
+                    initializeApp();
+                } else {
+                    window.location.href = 'index.html';
+                }
+            });
+
+            // ログアウト機能
+            logoutButton.addEventListener('click', () => {
+                auth.signOut();
+            });
+
+            // アプリ初期化
+            const initializeApp = () => {
+                const today = new Date();
+                todayDateElement.textContent = formatDate(today);
+                setupRatingButtons();
+                setupFormSubmission();
+                setupCalendar();
+                loadRecords();
+            };
+
+            // レーティングボタンの設定
+            const setupRatingButtons = () => {
+                document.querySelectorAll('.rating-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const name = button.dataset.name;
+                        const value = button.dataset.value;
+                        
+                        document.querySelectorAll(`[data-name="${name}"]`).forEach(btn => {
+                            btn.classList.remove('selected');
+                        });
+                        button.classList.add('selected');
+                        
+                        // 隠しinputを作成または更新
+                        let hiddenInput = document.querySelector(`input[name="${name}"]`);
+                        if (!hiddenInput) {
+                            hiddenInput = document.createElement('input');
+                            hiddenInput.type = 'hidden';
+                            hiddenInput.name = name;
+                            recordForm.appendChild(hiddenInput);
+                        }
+                        hiddenInput.value = value;
+                    });
+                });
+            };
+
+            // フォーム送信の設定
+            const setupFormSubmission = () => {
+                recordForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const formData = new FormData(recordForm);
+                    const data = Object.fromEntries(formData.entries());
+                    
+                    const today = new Date();
+                    const dateKey = formatDateKey(today);
+                    
+                    try {
+                        await db.collection('users').doc(currentUser.uid).collection('progress_records').doc(dateKey).set({
+                            ...data,
+                            date: firebase.firestore.Timestamp.fromDate(today),
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        
+                        alert('記録を保存しました！');
+                        loadRecords();
+                        
+                    } catch (error) {
+                        console.error('記録の保存に失敗しました:', error);
+                        alert('記録の保存に失敗しました。もう一度お試しください。');
+                    }
+                });
+            };
+
+            // 記録の読み込み
+            const loadRecords = async () => {
+                try {
+                    const snapshot = await db.collection('users').doc(currentUser.uid).collection('progress_records').get();
+                    records = {};
+                    
+                    snapshot.forEach(doc => {
+                        records[doc.id] = doc.data();
+                    });
+                    
+                    renderCalendar();
+                    loadTodayRecord();
+                    
+                } catch (error) {
+                    console.error('記録の読み込みに失敗しました:', error);
+                }
+            };
+
+            // 今日の記録を読み込み
+            const loadTodayRecord = () => {
+                const today = new Date();
+                const dateKey = formatDateKey(today);
+                const todayRecord = records[dateKey];
+                
+                if (todayRecord) {
+                    // フォームに既存の記録を設定
+                    Object.keys(todayRecord).forEach(key => {
+                        const input = document.querySelector(`[name="${key}"]`);
+                        if (input) {
+                            if (input.type === 'hidden') {
+                                input.value = todayRecord[key];
+                                document.querySelector(`[data-name="${key}"][data-value="${todayRecord[key]}"]`)?.classList.add('selected');
+                            } else {
+                                input.value = todayRecord[key];
+                            }
+                        }
+                    });
+                }
+            };
+
+            // カレンダーの設定
+            const setupCalendar = () => {
+                prevMonthButton.addEventListener('click', () => {
+                    currentDate.setMonth(currentDate.getMonth() - 1);
+                    renderCalendar();
+                });
+
+                nextMonthButton.addEventListener('click', () => {
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                    renderCalendar();
+                });
+
+                closeModal.addEventListener('click', () => {
+                    recordModal.classList.add('hidden');
+                });
+
+                recordModal.addEventListener('click', (e) => {
+                    if (e.target === recordModal) {
+                        recordModal.classList.add('hidden');
+                    }
+                });
+            };
+
+            // カレンダーの描画
+            const renderCalendar = () => {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                
+                currentMonthElement.textContent = `${year}年 ${month + 1}月`;
+                
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                const startDate = new Date(firstDay);
+                startDate.setDate(startDate.getDate() - firstDay.getDay());
+                
+                const today = new Date();
+                const todayKey = formatDateKey(today);
+                
+                let calendarHtml = '';
+                
+                for (let i = 0; i < 42; i++) {
+                    const cellDate = new Date(startDate);
+                    cellDate.setDate(startDate.getDate() + i);
+                    
+                    const dateKey = formatDateKey(cellDate);
+                    const isToday = dateKey === todayKey;
+                    const isOtherMonth = cellDate.getMonth() !== month;
+                    const hasRecord = records[dateKey];
+                    
+                    let classes = 'calendar-day';
+                    if (isToday) classes += ' today';
+                    if (isOtherMonth) classes += ' other-month';
+                    if (hasRecord) classes += ' has-record';
+                    
+                    let moodIndicator = '';
+                    if (hasRecord && hasRecord.mood) {
+                        const moodClass = getMoodClass(hasRecord.mood);
+                        moodIndicator = `<div class="mood-indicator ${moodClass}"></div>`;
+                    }
+                    
+                    calendarHtml += `
+                        <div class="${classes}" data-date="${dateKey}">
+                            <div class="font-semibold">${cellDate.getDate()}</div>
+                            ${moodIndicator}
+                        </div>
+                    `;
+                }
+                
+                calendarDaysContainer.innerHTML = calendarHtml;
+                
+                // カレンダーの日付クリックイベント
+                document.querySelectorAll('.calendar-day[data-date]').forEach(dayElement => {
+                    dayElement.addEventListener('click', () => {
+                        const dateKey = dayElement.dataset.date;
+                        const record = records[dateKey];
+                        
+                        if (record) {
+                            showRecordModal(dateKey, record);
+                        }
+                    });
+                });
+            };
+
+            // 記録モーダルの表示
+            const showRecordModal = (dateKey, record) => {
+                const date = new Date(dateKey);
+                modalDate.textContent = formatDate(date);
+                
+                const labels = {
+                    animal_food: '動物性食品',
+                    sugar_intake: '糖質摂取',
+                    meal_frequency: '食事回数',
+                    fatigue: '疲労感',
+                    digestion: '消化の調子',
+                    sleep: '睡眠の質',
+                    mood: '気分',
+                    stress: 'ストレス感',
+                    memo: 'メモ'
+                };
+                
+                const valueLabels = {
+                    animal_food: { none: '摂取していない', little: '少し', moderate: '普通', much: '多い' },
+                    sugar_intake: { none: '摂取していない', little: '少し', moderate: '普通', much: '多い' }
+                };
+                
+                let content = '<div class="space-y-3">';
+                
+                Object.keys(labels).forEach(key => {
+                    if (record[key]) {
+                        let displayValue = record[key];
+                        
+                        if (valueLabels[key]) {
+                            displayValue = valueLabels[key][record[key]] || record[key];
+                        } else if (key === 'meal_frequency') {
+                            displayValue = record[key] + '回';
+                        } else if (['fatigue', 'digestion', 'sleep', 'mood', 'stress'].includes(key)) {
+                            displayValue = record[key] + '/5';
+                        }
+                        
+                        content += `
+                            <div class="record-details">
+                                <span class="font-medium">${labels[key]}:</span>
+                                <span class="ml-2">${displayValue}</span>
+                            </div>
+                        `;
+                    }
+                });
+                
+                content += '</div>';
+                modalContent.innerHTML = content;
+                recordModal.classList.remove('hidden');
+            };
+
+            // 気分クラスの取得
+            const getMoodClass = (mood) => {
+                const moodValue = parseInt(mood);
+                if (moodValue >= 5) return 'mood-very-good';
+                if (moodValue >= 4) return 'mood-good';
+                if (moodValue >= 3) return 'mood-neutral';
+                if (moodValue >= 2) return 'mood-bad';
+                return 'mood-very-bad';
+            };
+
+            // 日付フォーマット
+            const formatDate = (date) => {
+                return date.toLocaleDateString('ja-JP', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    weekday: 'long'
+                });
+            };
+
+            // 日付キーフォーマット
+            const formatDateKey = (date) => {
+                return date.toISOString().split('T')[0];
+            };
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ようこそ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans JP', sans-serif; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+    <!-- 未ログイン時に表示 -->
+    <div id="login-view" class="w-full max-w-sm">
+        <div class="bg-white p-8 rounded-xl shadow-lg">
+            <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">ログイン</h1>
+            <div id="login-error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 hidden" role="alert">
+                <span class="block sm:inline">メールアドレスまたはパスワードが違います。</span>
+            </div>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">メールアドレス</label>
+                    <input type="email" id="email" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">パスワード</label>
+                    <input type="password" id="password" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    ログイン
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ログイン後に表示 -->
+    <div id="logged-in-view" class="hidden">
+        <div class="text-center bg-white p-10 rounded-xl shadow-lg max-w-sm mx-auto">
+            <h1 class="text-3xl font-bold mb-2 text-gray-800">ようこそ</h1>
+            <p id="user-email" class="text-gray-600 mb-8"></p>
+            <div class="space-y-4">
+                <a href="trauma-note.html" class="block w-full bg-blue-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-600 transition-transform transform hover:scale-105">
+                    Trauma-note
+                </a>
+                <a href="ai-shindan.html" class="block w-full text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-transform transform hover:scale-105" style="background-color: #E9A4B8;">
+                    AI 心と体の根本原因診断
+                </a>
+                <a href="progress-tracker.html" class="block w-full text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-transform transform hover:scale-105" style="background-color: #7A9B7A;">
+                    進捗管理
+                </a>
+            </div>
+            <button id="logout-button" class="mt-8 text-sm text-gray-500 hover:text-gray-700">ログアウト</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const firebaseConfig = {
+              apiKey: "AIzaSyCSK2XMhrPQbZ8J1y-Kz3YCoU45rDKv1bM",
+              authDomain: "trauma-note-app.firebaseapp.com",
+              projectId: "trauma-note-app",
+              storageBucket: "trauma-note-app.appspot.com",
+              messagingSenderId: "643740992546",
+              appId: "1:643740992546:web:dba603fed8f73b09c9f67b"
+            };
+
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            
+            const auth = firebase.auth();
+
+            const loginView = document.getElementById('login-view');
+            const loggedInView = document.getElementById('logged-in-view');
+            const userEmailDisplay = document.getElementById('user-email');
+            const logoutButton = document.getElementById('logout-button');
+            const loginForm = document.getElementById('login-form');
+            const loginError = document.getElementById('login-error');
+
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    loginView.classList.add('hidden');
+                    loggedInView.classList.remove('hidden');
+                    userEmailDisplay.textContent = user.email;
+                } else {
+                    loggedInView.classList.add('hidden');
+                    loginView.classList.remove('hidden');
+                }
+            });
+
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                loginError.classList.add('hidden');
+                auth.signInWithEmailAndPassword(email, password)
+                    .catch(error => {
+                        console.error("Login failed:", error);
+                        loginError.classList.remove('hidden');
+                    });
+            });
+
+            logoutButton.addEventListener('click', () => {
+                auth.signOut();
+            });
+        });
+    </script>
+</body>
+</html>
