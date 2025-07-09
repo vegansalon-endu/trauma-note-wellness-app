@@ -319,40 +319,57 @@
                 const prompt = `${systemInstructionText}\n\nユーザーのノート内容：\n「${noteContent}」\n\n対話履歴：\n${historyForApi.map(msg => `${msg.role}: ${msg.parts[0].text}`).join('\n')}\n\nあなたの返答:`;
 
                 try {
-                    // 一時的に直接Gemini APIを呼び出し（テスト用）
-                    const apiKey = "AIzaSyAdjWYPpgAnLfIflzpTBth1N5NN1_qHa0E";
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-                    
-                    const requestBody = {
-                        contents: [{
-                            parts: [{ text: prompt }]
-                        }]
+                    // リトライ機能付きのAPI呼び出し
+                    const makeApiCall = async (retryCount = 0) => {
+                        const apiKey = "AIzaSyAdjWYPpgAnLfIflzpTBth1N5NN1_qHa0E";
+                        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                        
+                        const requestBody = {
+                            contents: [{
+                                parts: [{ text: prompt }]
+                            }]
+                        };
+
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(requestBody)
+                        });
+
+                        if (!response.ok) {
+                            if (response.status === 503 && retryCount < 3) {
+                                // 503エラーの場合、少し待ってからリトライ
+                                await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
+                                return makeApiCall(retryCount + 1);
+                            }
+                            throw new Error(`API Error: ${response.status} - ${response.statusText}`);
+                        }
+
+                        return response.json();
                     };
 
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(requestBody)
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`API Error: ${response.status}`);
-                    }
-
-                    const result = await response.json();
+                    const result = await makeApiCall();
                     const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text || 'AI応答を取得できませんでした。';
                     
                     return { role: 'model', parts: [{ text: aiResponse }] };
                 } catch (err) {
                     console.error('AI生成エラー:', err);
-                    let errorMessage = 'エラーが発生しました。';
-                    if (err.code === 'unauthenticated') {
+                    let errorMessage = 'AIとの通信でエラーが発生しました。';
+                    
+                    if (err.message.includes('503')) {
+                        errorMessage = 'AI サーバーが一時的に利用できません。しばらく時間をおいてから再度お試しください。';
+                    } else if (err.message.includes('429')) {
+                        errorMessage = 'API使用制限に達しました。しばらく時間をおいてから再度お試しください。';
+                    } else if (err.message.includes('401')) {
+                        errorMessage = 'API認証エラーです。管理者にお問い合わせください。';
+                    } else if (err.code === 'unauthenticated') {
                         errorMessage = 'ログインが必要です。';
                     } else if (err.code === 'permission-denied') {
                         errorMessage = '権限がありません。';
                     } else if (err.message) {
                         errorMessage = `エラー: ${err.message}`;
                     }
+                    
                     return { role: 'model', parts: [{ text: errorMessage }] };
                 } finally {
                     setIsAiThinking(false);
