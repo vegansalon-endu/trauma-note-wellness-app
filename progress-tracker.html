@@ -1415,6 +1415,8 @@ JSON形式:
                     }
                     
                     const record = doc.data();
+                    console.log('取得した記録:', record);
+                    
                     if (!record || !record.meal_entries || record.meal_entries.length === 0) {
                         console.log('食事エントリがありません:', record);
                         return;
@@ -1422,7 +1424,10 @@ JSON形式:
                     
                     // 一日の食事を時系列で整理
                     const meals = record.meal_entries.sort((a, b) => a.time.localeCompare(b.time));
+                    console.log('整理された食事:', meals);
+                    
                     const mealSummary = meals.map(meal => `${meal.time}: ${meal.content} (${meal.amount || ''})${meal.description ? ` - ${meal.description}` : ''}`).join('\\n');
+                    console.log('食事サマリー:', mealSummary);
                     
                     const prompt = `以下の一日の食事内容を分析して、栄養バランスと健康面での評価を日本語で簡潔にコメントしてください：
 
@@ -1450,6 +1455,8 @@ ${mealSummary}
                     const apiKey = "AIzaSyAdjWYPpgAnLfIflzpTBth1N5NN1_qHa0E";
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                     
+                    console.log('AI APIリクエスト送信中...');
+                    
                     const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1458,17 +1465,25 @@ ${mealSummary}
                         })
                     });
                     
+                    console.log('AI APIレスポンス:', response.status);
+                    
                     if (!response.ok) {
                         throw new Error(`API Error: ${response.status}`);
                     }
                     
                     const result = await response.json();
+                    console.log('AI生の応答:', result);
+                    
                     const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    console.log('AI応答テキスト:', aiResponse);
                     
                     if (aiResponse) {
                         const jsonMatch = aiResponse.match(/\\{[\\s\\S]*\\}/);
+                        console.log('JSON抽出:', jsonMatch?.[0]);
+                        
                         if (jsonMatch) {
                             const summary = JSON.parse(jsonMatch[0]);
+                            console.log('パース済みサマリー:', summary);
                             
                             // 評価結果をデータベースに保存
                             await docRef.update({
