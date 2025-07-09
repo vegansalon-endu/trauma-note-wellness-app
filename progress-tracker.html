@@ -14,6 +14,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
     
+    <!-- Chart.js for weight/BMI visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
         :root {
             --main-pink: #E9A4B8;
@@ -166,11 +169,103 @@
             <div id="today-date" class="text-gray-600 mb-6"></div>
             
             <form id="record-form">
+                <!-- 体重・BMI セクション -->
+                <div class="mb-8 p-6 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200">
+                    <h3 class="font-semibold mb-4 text-lg flex items-center">
+                        <span class="bg-pink-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-2">📊</span>
+                        体重・BMI管理
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">今日の体重 (kg)</label>
+                            <input type="number" step="0.1" name="weight" id="weight-input" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-pink-500 focus:border-pink-500" placeholder="60.5">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">身長 (cm)</label>
+                            <input type="number" step="0.1" name="height" id="height-input" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-pink-500 focus:border-pink-500" placeholder="165.0">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">目標体重 (kg)</label>
+                            <input type="number" step="0.1" name="target_weight" id="target-weight-input" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-pink-500 focus:border-pink-500" placeholder="55.0">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">BMI</label>
+                            <div class="w-full border rounded-lg px-3 py-2 bg-gray-50 flex items-center">
+                                <span id="bmi-display" class="font-semibold text-gray-700">-</span>
+                                <span id="bmi-status" class="ml-2 text-xs px-2 py-1 rounded-full">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div class="text-center p-3 bg-white rounded-lg">
+                            <p class="text-gray-600">目標まで</p>
+                            <p id="weight-diff" class="font-bold text-lg text-pink-600">-</p>
+                        </div>
+                        <div class="text-center p-3 bg-white rounded-lg">
+                            <p class="text-gray-600">標準体重(BMI22)</p>
+                            <p id="standard-weight" class="font-bold text-lg text-green-600">-</p>
+                        </div>
+                        <div class="text-center p-3 bg-white rounded-lg">
+                            <p class="text-gray-600">理想体重(BMI20)</p>
+                            <p id="ideal-weight" class="font-bold text-lg text-blue-600">-</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <!-- 食生活 -->
                     <div>
                         <h3 class="font-semibold mb-3">食生活</h3>
                         <div class="space-y-3">
+                            <!-- AI食事解析セクション -->
+                            <div class="p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+                                <h4 class="font-semibold text-sm mb-2 flex items-center">
+                                    <span class="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">🤖</span>
+                                    AI食事解析
+                                </h4>
+                                <div class="space-y-2">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                        <div>
+                                            <label class="block text-xs font-medium mb-1">朝食</label>
+                                            <input type="text" name="breakfast" placeholder="例：カレー、サラダ" class="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium mb-1">昼食</label>
+                                            <input type="text" name="lunch" placeholder="例：パスタ、スープ" class="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium mb-1">夕食</label>
+                                            <input type="text" name="dinner" placeholder="例：ご飯、味噌汁" class="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium mb-1">間食・その他</label>
+                                        <input type="text" name="snacks" placeholder="例：お菓子、果物" class="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500">
+                                    </div>
+                                    <button type="button" id="analyze-food-btn" class="w-full bg-green-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-600 transition text-sm">
+                                        AI食事分析を実行
+                                    </button>
+                                    <div id="food-analysis-result" class="hidden p-3 bg-white rounded border text-sm">
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+                                            <div class="text-center p-2 bg-red-50 rounded">
+                                                <p class="font-medium">動物性食品</p>
+                                                <p id="animal-score" class="text-lg font-bold text-red-600">-</p>
+                                            </div>
+                                            <div class="text-center p-2 bg-orange-50 rounded">
+                                                <p class="font-medium">糖質</p>
+                                                <p id="carb-score" class="text-lg font-bold text-orange-600">-</p>
+                                            </div>
+                                            <div class="text-center p-2 bg-blue-50 rounded">
+                                                <p class="font-medium">タンパク質</p>
+                                                <p id="protein-score" class="text-lg font-bold text-blue-600">-</p>
+                                            </div>
+                                        </div>
+                                        <div id="food-details" class="mt-2 text-xs text-gray-600"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 既存の食事記録セクション -->
                             <div>
                                 <label class="block text-sm font-medium mb-2">動物性食品の摂取</label>
                                 <select name="animal_food" class="w-full border rounded-lg px-3 py-2">
@@ -281,6 +376,68 @@
             </form>
         </div>
 
+        <!-- 体重推移グラフ -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold">体重・BMI推移</h2>
+                <div class="flex gap-2">
+                    <button id="chart-7days" class="px-3 py-1 border rounded hover:bg-gray-100 bg-pink-100 border-pink-300">7日</button>
+                    <button id="chart-30days" class="px-3 py-1 border rounded hover:bg-gray-100">30日</button>
+                    <button id="chart-90days" class="px-3 py-1 border rounded hover:bg-gray-100">90日</button>
+                </div>
+            </div>
+            <div class="h-64 mb-4">
+                <canvas id="weight-chart"></canvas>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                <div class="text-center p-3 bg-gray-50 rounded-lg">
+                    <p class="text-gray-600">最高体重</p>
+                    <p id="max-weight" class="font-bold text-lg text-red-600">-</p>
+                </div>
+                <div class="text-center p-3 bg-gray-50 rounded-lg">
+                    <p class="text-gray-600">最低体重</p>
+                    <p id="min-weight" class="font-bold text-lg text-green-600">-</p>
+                </div>
+                <div class="text-center p-3 bg-gray-50 rounded-lg">
+                    <p class="text-gray-600">平均体重</p>
+                    <p id="avg-weight" class="font-bold text-lg text-blue-600">-</p>
+                </div>
+                <div class="text-center p-3 bg-gray-50 rounded-lg">
+                    <p class="text-gray-600">変化量</p>
+                    <p id="weight-change" class="font-bold text-lg text-purple-600">-</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 栄養分析グラフ -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold">栄養バランス分析</h2>
+                <div class="flex gap-2">
+                    <button id="nutrition-7days" class="px-3 py-1 border rounded hover:bg-gray-100 bg-green-100 border-green-300">7日</button>
+                    <button id="nutrition-30days" class="px-3 py-1 border rounded hover:bg-gray-100">30日</button>
+                    <button id="nutrition-90days" class="px-3 py-1 border rounded hover:bg-gray-100">90日</button>
+                </div>
+            </div>
+            <div class="h-64 mb-4">
+                <canvas id="nutrition-chart"></canvas>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div class="text-center p-3 bg-red-50 rounded-lg">
+                    <p class="text-gray-600">動物性食品平均</p>
+                    <p id="avg-animal" class="font-bold text-lg text-red-600">-</p>
+                </div>
+                <div class="text-center p-3 bg-orange-50 rounded-lg">
+                    <p class="text-gray-600">糖質平均</p>
+                    <p id="avg-carbs" class="font-bold text-lg text-orange-600">-</p>
+                </div>
+                <div class="text-center p-3 bg-blue-50 rounded-lg">
+                    <p class="text-gray-600">タンパク質平均</p>
+                    <p id="avg-protein" class="font-bold text-lg text-blue-600">-</p>
+                </div>
+            </div>
+        </div>
+
         <!-- カレンダー表示 -->
         <div class="bg-white rounded-lg shadow-sm p-6">
             <div class="flex justify-between items-center mb-6">
@@ -375,9 +532,67 @@
                 const today = new Date();
                 todayDateElement.textContent = formatDate(today);
                 setupRatingButtons();
+                setupWeightBMICalculation();
                 setupFormSubmission();
                 setupCalendar();
+                setupWeightChart();
+                setupNutritionChart();
+                setupFoodAnalysis();
                 loadRecords();
+            };
+
+            // 体重・BMI計算機能の設定
+            const setupWeightBMICalculation = () => {
+                const weightInput = document.getElementById('weight-input');
+                const heightInput = document.getElementById('height-input');
+                const targetWeightInput = document.getElementById('target-weight-input');
+                
+                const calculateAndDisplay = () => {
+                    const weight = parseFloat(weightInput.value);
+                    const height = parseFloat(heightInput.value);
+                    const targetWeight = parseFloat(targetWeightInput.value);
+                    
+                    if (weight && height) {
+                        const heightInM = height / 100;
+                        const bmi = weight / (heightInM * heightInM);
+                        
+                        // BMI表示
+                        document.getElementById('bmi-display').textContent = bmi.toFixed(1);
+                        
+                        // BMI状態表示
+                        const bmiStatus = document.getElementById('bmi-status');
+                        if (bmi < 18.5) {
+                            bmiStatus.textContent = '痩せ';
+                            bmiStatus.className = 'ml-2 text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800';
+                        } else if (bmi < 25) {
+                            bmiStatus.textContent = '標準';
+                            bmiStatus.className = 'ml-2 text-xs px-2 py-1 rounded-full bg-green-100 text-green-800';
+                        } else if (bmi < 30) {
+                            bmiStatus.textContent = '肥満(1度)';
+                            bmiStatus.className = 'ml-2 text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800';
+                        } else {
+                            bmiStatus.textContent = '肥満(2度以上)';
+                            bmiStatus.className = 'ml-2 text-xs px-2 py-1 rounded-full bg-red-100 text-red-800';
+                        }
+                        
+                        // 目標体重との差
+                        if (targetWeight) {
+                            const diff = weight - targetWeight;
+                            document.getElementById('weight-diff').textContent = diff > 0 ? `+${diff.toFixed(1)}kg` : `${diff.toFixed(1)}kg`;
+                        }
+                        
+                        // 標準体重・理想体重
+                        const standardWeight = 22 * heightInM * heightInM;
+                        const idealWeight = 20 * heightInM * heightInM;
+                        
+                        document.getElementById('standard-weight').textContent = standardWeight.toFixed(1) + 'kg';
+                        document.getElementById('ideal-weight').textContent = idealWeight.toFixed(1) + 'kg';
+                    }
+                };
+                
+                weightInput.addEventListener('input', calculateAndDisplay);
+                heightInput.addEventListener('input', calculateAndDisplay);
+                targetWeightInput.addEventListener('input', calculateAndDisplay);
             };
 
             // レーティングボタンの設定
@@ -447,6 +662,16 @@
                     renderCalendar();
                     loadTodayRecord();
                     
+                    // 体重グラフを更新
+                    if (window.updateWeightChart) {
+                        window.updateWeightChart();
+                    }
+                    
+                    // 栄養分析グラフを更新
+                    if (window.updateNutritionChart) {
+                        window.updateNutritionChart();
+                    }
+                    
                 } catch (error) {
                     console.error('記録の読み込みに失敗しました:', error);
                 }
@@ -471,7 +696,340 @@
                             }
                         }
                     });
+                    
+                    // 体重・BMI計算を更新
+                    if (todayRecord.weight && todayRecord.height) {
+                        const weightInput = document.getElementById('weight-input');
+                        const heightInput = document.getElementById('height-input');
+                        
+                        if (weightInput && heightInput) {
+                            const event = new Event('input');
+                            weightInput.dispatchEvent(event);
+                        }
+                    }
                 }
+            };
+
+            // 体重推移グラフの設定
+            const setupWeightChart = () => {
+                const ctx = document.getElementById('weight-chart').getContext('2d');
+                let weightChart = null;
+                let currentPeriod = 7; // デフォルトは7日間
+                
+                const chartButtons = {
+                    '7days': document.getElementById('chart-7days'),
+                    '30days': document.getElementById('chart-30days'),
+                    '90days': document.getElementById('chart-90days')
+                };
+                
+                // ボタンイベント設定
+                Object.entries(chartButtons).forEach(([key, button]) => {
+                    button.addEventListener('click', () => {
+                        // ボタンの状態を更新
+                        Object.values(chartButtons).forEach(btn => {
+                            btn.classList.remove('bg-pink-100', 'border-pink-300');
+                        });
+                        button.classList.add('bg-pink-100', 'border-pink-300');
+                        
+                        // 期間を設定
+                        currentPeriod = parseInt(key.replace('days', ''));
+                        updateWeightChart();
+                    });
+                });
+                
+                const updateWeightChart = () => {
+                    const weightData = getWeightData(currentPeriod);
+                    
+                    if (weightChart) {
+                        weightChart.destroy();
+                    }
+                    
+                    weightChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: weightData.labels,
+                            datasets: [{
+                                label: '体重 (kg)',
+                                data: weightData.weights,
+                                borderColor: '#E9A4B8',
+                                backgroundColor: 'rgba(233, 164, 184, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.3
+                            }, {
+                                label: 'BMI',
+                                data: weightData.bmis,
+                                borderColor: '#7A9B7A',
+                                backgroundColor: 'rgba(122, 155, 122, 0.1)',
+                                borderWidth: 2,
+                                fill: false,
+                                tension: 0.3,
+                                yAxisID: 'y1'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            scales: {
+                                y: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'left',
+                                    title: {
+                                        display: true,
+                                        text: '体重 (kg)'
+                                    }
+                                },
+                                y1: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'right',
+                                    title: {
+                                        display: true,
+                                        text: 'BMI'
+                                    },
+                                    grid: {
+                                        drawOnChartArea: false,
+                                    },
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                }
+                            }
+                        }
+                    });
+                    
+                    // 統計情報を更新
+                    updateWeightStats(weightData.weights);
+                };
+                
+                const getWeightData = (days) => {
+                    const endDate = new Date();
+                    const startDate = new Date();
+                    startDate.setDate(endDate.getDate() - days + 1);
+                    
+                    const labels = [];
+                    const weights = [];
+                    const bmis = [];
+                    
+                    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                        const dateKey = formatDateKey(d);
+                        const record = records[dateKey];
+                        
+                        labels.push(d.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }));
+                        
+                        if (record && record.weight && record.height) {
+                            weights.push(parseFloat(record.weight));
+                            const heightInM = parseFloat(record.height) / 100;
+                            bmis.push(parseFloat(record.weight) / (heightInM * heightInM));
+                        } else {
+                            weights.push(null);
+                            bmis.push(null);
+                        }
+                    }
+                    
+                    return { labels, weights, bmis };
+                };
+                
+                const updateWeightStats = (weights) => {
+                    const validWeights = weights.filter(w => w !== null);
+                    
+                    if (validWeights.length === 0) {
+                        document.getElementById('max-weight').textContent = '-';
+                        document.getElementById('min-weight').textContent = '-';
+                        document.getElementById('avg-weight').textContent = '-';
+                        document.getElementById('weight-change').textContent = '-';
+                        return;
+                    }
+                    
+                    const maxWeight = Math.max(...validWeights);
+                    const minWeight = Math.min(...validWeights);
+                    const avgWeight = validWeights.reduce((a, b) => a + b, 0) / validWeights.length;
+                    const weightChange = validWeights.length > 1 ? validWeights[validWeights.length - 1] - validWeights[0] : 0;
+                    
+                    document.getElementById('max-weight').textContent = maxWeight.toFixed(1) + 'kg';
+                    document.getElementById('min-weight').textContent = minWeight.toFixed(1) + 'kg';
+                    document.getElementById('avg-weight').textContent = avgWeight.toFixed(1) + 'kg';
+                    document.getElementById('weight-change').textContent = weightChange >= 0 ? `+${weightChange.toFixed(1)}kg` : `${weightChange.toFixed(1)}kg`;
+                };
+                
+                // 初期チャート作成
+                window.updateWeightChart = updateWeightChart;
+            };
+            
+            // 栄養分析グラフの設定
+            const setupNutritionChart = () => {
+                const ctx = document.getElementById('nutrition-chart').getContext('2d');
+                let nutritionChart = null;
+                let currentNutritionPeriod = 7; // デフォルトは7日間
+                
+                const chartButtons = {
+                    '7days': document.getElementById('nutrition-7days'),
+                    '30days': document.getElementById('nutrition-30days'),
+                    '90days': document.getElementById('nutrition-90days')
+                };
+                
+                // ボタンイベント設定
+                Object.entries(chartButtons).forEach(([key, button]) => {
+                    button.addEventListener('click', () => {
+                        // ボタンの状態を更新
+                        Object.values(chartButtons).forEach(btn => {
+                            btn.classList.remove('bg-green-100', 'border-green-300');
+                        });
+                        button.classList.add('bg-green-100', 'border-green-300');
+                        
+                        // 期間を設定
+                        currentNutritionPeriod = parseInt(key.replace('days', ''));
+                        updateNutritionChart();
+                    });
+                });
+                
+                const updateNutritionChart = () => {
+                    const nutritionData = getNutritionData(currentNutritionPeriod);
+                    
+                    if (nutritionChart) {
+                        nutritionChart.destroy();
+                    }
+                    
+                    nutritionChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: nutritionData.labels,
+                            datasets: [{
+                                label: '動物性食品',
+                                data: nutritionData.animalData,
+                                borderColor: '#EF4444',
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                borderWidth: 2,
+                                fill: false,
+                                tension: 0.3
+                            }, {
+                                label: '糖質',
+                                data: nutritionData.carbData,
+                                borderColor: '#F97316',
+                                backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                                borderWidth: 2,
+                                fill: false,
+                                tension: 0.3
+                            }, {
+                                label: 'タンパク質',
+                                data: nutritionData.proteinData,
+                                borderColor: '#3B82F6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                borderWidth: 2,
+                                fill: false,
+                                tension: 0.3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 4,
+                                    ticks: {
+                                        callback: function(value) {
+                                            const labels = ['なし', '少し', '普通', '多い'];
+                                            return labels[value] || value;
+                                        }
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: '摂取レベル'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                }
+                            }
+                        }
+                    });
+                    
+                    // 統計情報を更新
+                    updateNutritionStats(nutritionData);
+                };
+                
+                const getNutritionData = (days) => {
+                    const endDate = new Date();
+                    const startDate = new Date();
+                    startDate.setDate(endDate.getDate() - days + 1);
+                    
+                    const labels = [];
+                    const animalData = [];
+                    const carbData = [];
+                    const proteinData = [];
+                    
+                    // レベルを数値にマッピング
+                    const levelToNumber = {
+                        'none': 0,
+                        'little': 1,
+                        'moderate': 2,
+                        'much': 3
+                    };
+                    
+                    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                        const dateKey = formatDateKey(d);
+                        const record = records[dateKey];
+                        
+                        labels.push(d.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }));
+                        
+                        if (record) {
+                            animalData.push(levelToNumber[record.animal_food] ?? null);
+                            carbData.push(levelToNumber[record.sugar_intake] ?? null);
+                            // プロテインレベルがない場合は推定値を使用
+                            const proteinLevel = record.protein_level || 'moderate';
+                            proteinData.push(levelToNumber[proteinLevel] ?? null);
+                        } else {
+                            animalData.push(null);
+                            carbData.push(null);
+                            proteinData.push(null);
+                        }
+                    }
+                    
+                    return { labels, animalData, carbData, proteinData };
+                };
+                
+                const updateNutritionStats = (nutritionData) => {
+                    const numberToLevel = {
+                        0: 'なし',
+                        1: '少し',
+                        2: '普通',
+                        3: '多い'
+                    };
+                    
+                    const calcAverage = (data) => {
+                        const validData = data.filter(d => d !== null);
+                        if (validData.length === 0) return null;
+                        const avg = validData.reduce((a, b) => a + b, 0) / validData.length;
+                        return Math.round(avg);
+                    };
+                    
+                    const avgAnimal = calcAverage(nutritionData.animalData);
+                    const avgCarbs = calcAverage(nutritionData.carbData);
+                    const avgProtein = calcAverage(nutritionData.proteinData);
+                    
+                    document.getElementById('avg-animal').textContent = avgAnimal !== null ? numberToLevel[avgAnimal] : '-';
+                    document.getElementById('avg-carbs').textContent = avgCarbs !== null ? numberToLevel[avgCarbs] : '-';
+                    document.getElementById('avg-protein').textContent = avgProtein !== null ? numberToLevel[avgProtein] : '-';
+                };
+                
+                // 初期チャート作成
+                window.updateNutritionChart = updateNutritionChart;
             };
 
             // カレンダーの設定
@@ -563,6 +1121,10 @@
                 modalDate.textContent = formatDate(date);
                 
                 const labels = {
+                    breakfast: '朝食',
+                    lunch: '昼食',
+                    dinner: '夕食',
+                    snacks: '間食・その他',
                     animal_food: '動物性食品',
                     sugar_intake: '糖質摂取',
                     meal_frequency: '食事回数',
@@ -591,6 +1153,8 @@
                             displayValue = record[key] + '回';
                         } else if (['fatigue', 'digestion', 'sleep', 'mood', 'stress'].includes(key)) {
                             displayValue = record[key] + '/5';
+                        } else if (['breakfast', 'lunch', 'dinner', 'snacks'].includes(key)) {
+                            displayValue = record[key];
                         }
                         
                         content += `
@@ -630,6 +1194,137 @@
             // 日付キーフォーマット
             const formatDateKey = (date) => {
                 return date.toISOString().split('T')[0];
+            };
+            
+            // AI食事解析機能の設定
+            const setupFoodAnalysis = () => {
+                const analyzeFoodBtn = document.getElementById('analyze-food-btn');
+                const foodAnalysisResult = document.getElementById('food-analysis-result');
+                
+                analyzeFoodBtn.addEventListener('click', async () => {
+                    const breakfast = document.querySelector('input[name="breakfast"]').value;
+                    const lunch = document.querySelector('input[name="lunch"]').value;
+                    const dinner = document.querySelector('input[name="dinner"]').value;
+                    const snacks = document.querySelector('input[name="snacks"]').value;
+                    
+                    const meals = [breakfast, lunch, dinner, snacks].filter(meal => meal.trim());
+                    
+                    if (meals.length === 0) {
+                        alert('食事内容を入力してください');
+                        return;
+                    }
+                    
+                    analyzeFoodBtn.textContent = '解析中...';
+                    analyzeFoodBtn.disabled = true;
+                    
+                    try {
+                        const analysis = await analyzeFood(meals.join(', '));
+                        displayFoodAnalysis(analysis);
+                        foodAnalysisResult.classList.remove('hidden');
+                        
+                        // 既存の選択肢を自動設定
+                        if (analysis.animal_food_level) {
+                            document.querySelector('select[name="animal_food"]').value = analysis.animal_food_level;
+                        }
+                        if (analysis.sugar_level) {
+                            document.querySelector('select[name="sugar_intake"]').value = analysis.sugar_level;
+                        }
+                        
+                    } catch (error) {
+                        console.error('食事分析エラー:', error);
+                        alert('食事分析に失敗しました。もう一度お試しください。');
+                    } finally {
+                        analyzeFoodBtn.textContent = 'AI食事分析を実行';
+                        analyzeFoodBtn.disabled = false;
+                    }
+                });
+            };
+            
+            // AI食事分析
+            const analyzeFood = async (foodText) => {
+                const prompt = `以下の食事内容を分析して、JSON形式で結果を返してください：
+
+食事内容: ${foodText}
+
+分析項目:
+1. 動物性食品の摂取量（none/little/moderate/much）
+2. 糖質の摂取量（none/little/moderate/much）
+3. タンパク質の摂取量（none/little/moderate/much）
+4. 推定される主な材料（配列）
+5. 栄養バランスの評価
+
+JSON形式:
+{
+  "animal_food_level": "moderate",
+  "sugar_level": "much",
+  "protein_level": "moderate",
+  "ingredients": ["牛肉", "米", "野菜"],
+  "nutrition_comment": "バランスの取れた食事です"
+}`;
+                
+                try {
+                    const apiKey = "AIzaSyAdjWYPpgAnLfIflzpTBth1N5NN1_qHa0E";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }]
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`API Error: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    
+                    if (!aiResponse) {
+                        throw new Error('AI応答を取得できませんでした');
+                    }
+                    
+                    // JSONを抽出
+                    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                    if (!jsonMatch) {
+                        throw new Error('有効なJSONレスポンスが見つかりませんでした');
+                    }
+                    
+                    return JSON.parse(jsonMatch[0]);
+                    
+                } catch (error) {
+                    console.error('AI食事分析エラー:', error);
+                    // フォールバック分析
+                    return {
+                        animal_food_level: 'moderate',
+                        sugar_level: 'moderate',
+                        protein_level: 'moderate',
+                        ingredients: ['分析できませんでした'],
+                        nutrition_comment: '分析に失敗しました'
+                    };
+                }
+            };
+            
+            // 食事分析結果の表示
+            const displayFoodAnalysis = (analysis) => {
+                const levelLabels = {
+                    'none': '少ない',
+                    'little': '少し',
+                    'moderate': '普通',
+                    'much': '多い'
+                };
+                
+                document.getElementById('animal-score').textContent = levelLabels[analysis.animal_food_level] || '不明';
+                document.getElementById('carb-score').textContent = levelLabels[analysis.sugar_level] || '不明';
+                document.getElementById('protein-score').textContent = levelLabels[analysis.protein_level] || '不明';
+                
+                const details = `
+                    <p><strong>推定材料:</strong> ${analysis.ingredients ? analysis.ingredients.join(', ') : '不明'}</p>
+                    <p><strong>栄養評価:</strong> ${analysis.nutrition_comment || '評価できませんでした'}</p>
+                `;
+                
+                document.getElementById('food-details').innerHTML = details;
             };
         });
     </script>
