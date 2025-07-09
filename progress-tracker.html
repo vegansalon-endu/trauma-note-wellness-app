@@ -485,6 +485,48 @@
             </div>
         </div>
 
+        <!-- 食事間隔分析グラフ -->
+        <div class="glass-card p-8 mb-8">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-2xl font-bold flex items-center">
+                    <span class="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg mr-3 shadow-lg">⏰</span>
+                    食事間隔分析（IF）
+                </h2>
+                <div class="flex gap-2">
+                    <button id="interval-7days" class="animated-button px-4 py-2 text-sm bg-orange-100 text-orange-700 border border-orange-300 rounded-full hover:bg-orange-200">7日</button>
+                    <button id="interval-30days" class="px-4 py-2 text-sm border rounded-full hover:bg-gray-100 transition-colors">30日</button>
+                    <button id="interval-90days" class="px-4 py-2 text-sm border rounded-full hover:bg-gray-100 transition-colors">90日</button>
+                </div>
+            </div>
+            <div class="h-64 mb-6">
+                <canvas id="interval-chart"></canvas>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm">
+                <div class="text-center p-4 glass-card bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all duration-300">
+                    <p class="text-gray-600 mb-2">平均ファスティング時間</p>
+                    <p id="avg-fasting" class="font-bold text-lg text-green-600">-</p>
+                </div>
+                <div class="text-center p-4 glass-card bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all duration-300">
+                    <p class="text-gray-600 mb-2">最長ファスティング</p>
+                    <p id="max-fasting" class="font-bold text-lg text-blue-600">-</p>
+                </div>
+                <div class="text-center p-4 glass-card bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 transition-all duration-300">
+                    <p class="text-gray-600 mb-2">食事ウィンドウ平均</p>
+                    <p id="avg-eating-window" class="font-bold text-lg text-purple-600">-</p>
+                </div>
+                <div class="text-center p-4 glass-card bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 transition-all duration-300">
+                    <p class="text-gray-600 mb-2">IFスコア</p>
+                    <p id="if-score" class="font-bold text-lg text-orange-600">-</p>
+                </div>
+            </div>
+            <div class="mt-6 p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
+                <h4 class="font-bold text-sm mb-2 text-orange-800">今日のファスティング状況</h4>
+                <div id="today-fasting-status" class="text-sm text-orange-700">
+                    <p>今日の食事が記録されていません</p>
+                </div>
+            </div>
+        </div>
+
         <!-- カレンダー表示 -->
         <div class="glass-card p-8">
             <div class="flex justify-between items-center mb-8">
@@ -1972,6 +2014,330 @@ ${mealSummary}
                     console.error('更新エラー:', error);
                     alert(`更新に失敗しました: ${error.message}`);
                 }
+            };
+            
+            // 食事間隔分析関数
+            const calculateFastingIntervals = (records) => {
+                const intervals = [];
+                
+                // 記録を日付順にソート
+                const sortedDates = Object.keys(records).sort();
+                
+                sortedDates.forEach(dateKey => {
+                    const record = records[dateKey];
+                    if (record && record.meal_entries && record.meal_entries.length > 0) {
+                        const meals = record.meal_entries.sort((a, b) => a.time.localeCompare(b.time));
+                        const date = new Date(dateKey);
+                        
+                        // その日の最初と最後の食事時刻を取得
+                        const firstMeal = meals[0];
+                        const lastMeal = meals[meals.length - 1];
+                        
+                        const firstMealTime = new Date(date);
+                        const [firstHour, firstMinute] = firstMeal.time.split(':').map(Number);
+                        firstMealTime.setHours(firstHour, firstMinute, 0, 0);
+                        
+                        const lastMealTime = new Date(date);
+                        const [lastHour, lastMinute] = lastMeal.time.split(':').map(Number);
+                        lastMealTime.setHours(lastHour, lastMinute, 0, 0);
+                        
+                        intervals.push({
+                            date: dateKey,
+                            firstMeal: firstMealTime,
+                            lastMeal: lastMealTime,
+                            meals: meals,
+                            mealCount: meals.length,
+                            eatingWindow: (lastMealTime - firstMealTime) / (1000 * 60 * 60) // 時間単位
+                        });
+                    }
+                });
+                
+                return intervals;
+            };
+            
+            const calculateFastingStats = (intervals) => {
+                if (intervals.length === 0) return null;
+                
+                const fastingPeriods = [];
+                
+                // 連続する日のファスティング時間を計算
+                for (let i = 0; i < intervals.length - 1; i++) {
+                    const current = intervals[i];
+                    const next = intervals[i + 1];
+                    
+                    // 翔日のチェック
+                    const currentDate = new Date(current.date);
+                    const nextDate = new Date(next.date);
+                    const dayDiff = (nextDate - currentDate) / (1000 * 60 * 60 * 24);
+                    
+                    if (dayDiff === 1) {
+                        const fastingHours = (next.firstMeal - current.lastMeal) / (1000 * 60 * 60);
+                        fastingPeriods.push({
+                            from: current.date,
+                            to: next.date,
+                            hours: fastingHours
+                        });
+                    }
+                }
+                
+                // スタットを計算
+                const avgFasting = fastingPeriods.length > 0 ? 
+                    fastingPeriods.reduce((sum, p) => sum + p.hours, 0) / fastingPeriods.length : 0;
+                
+                const maxFasting = fastingPeriods.length > 0 ? 
+                    Math.max(...fastingPeriods.map(p => p.hours)) : 0;
+                
+                const avgEatingWindow = intervals.length > 0 ? 
+                    intervals.reduce((sum, i) => sum + i.eatingWindow, 0) / intervals.length : 0;
+                
+                // IFスコアを計算（ファスティング時間が長いほど高い）
+                let ifScore = 0;
+                if (avgFasting >= 16) ifScore += 40; // 16時間以上
+                else if (avgFasting >= 14) ifScore += 30; // 14時間以上
+                else if (avgFasting >= 12) ifScore += 20; // 12時間以上
+                else if (avgFasting >= 10) ifScore += 10; // 10時間以上
+                
+                if (avgEatingWindow <= 8) ifScore += 30; // 8時間以下の食事ウィンドウ
+                else if (avgEatingWindow <= 10) ifScore += 20;
+                else if (avgEatingWindow <= 12) ifScore += 10;
+                
+                // 食事回数が少ないほど高いスコア
+                const avgMealCount = intervals.reduce((sum, i) => sum + i.mealCount, 0) / intervals.length;
+                if (avgMealCount <= 2) ifScore += 30;
+                else if (avgMealCount <= 2.5) ifScore += 20;
+                else if (avgMealCount <= 3) ifScore += 10;
+                
+                return {
+                    avgFasting: avgFasting,
+                    maxFasting: maxFasting,
+                    avgEatingWindow: avgEatingWindow,
+                    ifScore: Math.min(ifScore, 100), // 最大100点
+                    fastingPeriods: fastingPeriods
+                };
+            };
+            
+            const displayTodayFastingStatus = () => {
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                
+                const todayKey = formatDateKey(today);
+                const yesterdayKey = formatDateKey(yesterday);
+                
+                const todayRecord = records[todayKey];
+                const yesterdayRecord = records[yesterdayKey];
+                
+                const statusDiv = document.getElementById('today-fasting-status');
+                
+                if (!todayRecord || !todayRecord.meal_entries || todayRecord.meal_entries.length === 0) {
+                    statusDiv.innerHTML = '<p>今日の食事がまだ記録されていません</p>';
+                    return;
+                }
+                
+                const todayMeals = todayRecord.meal_entries.sort((a, b) => a.time.localeCompare(b.time));
+                const firstMeal = todayMeals[0];
+                const lastMeal = todayMeals[todayMeals.length - 1];
+                
+                const firstMealTime = new Date(today);
+                const [firstHour, firstMinute] = firstMeal.time.split(':').map(Number);
+                firstMealTime.setHours(firstHour, firstMinute, 0, 0);
+                
+                const lastMealTime = new Date(today);
+                const [lastHour, lastMinute] = lastMeal.time.split(':').map(Number);
+                lastMealTime.setHours(lastHour, lastMinute, 0, 0);
+                
+                const eatingWindow = (lastMealTime - firstMealTime) / (1000 * 60 * 60);
+                
+                let fastingFromYesterday = 0;
+                if (yesterdayRecord && yesterdayRecord.meal_entries && yesterdayRecord.meal_entries.length > 0) {
+                    const yesterdayMeals = yesterdayRecord.meal_entries.sort((a, b) => a.time.localeCompare(b.time));
+                    const lastYesterdayMeal = yesterdayMeals[yesterdayMeals.length - 1];
+                    
+                    const lastYesterdayTime = new Date(yesterday);
+                    const [lastYHour, lastYMinute] = lastYesterdayMeal.time.split(':').map(Number);
+                    lastYesterdayTime.setHours(lastYHour, lastYMinute, 0, 0);
+                    
+                    fastingFromYesterday = (firstMealTime - lastYesterdayTime) / (1000 * 60 * 60);
+                }
+                
+                let statusHtml = `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                        <div class="text-center">
+                            <div class="text-xs text-gray-500">食事回数</div>
+                            <div class="font-bold text-lg">${todayMeals.length}回</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-xs text-gray-500">食事ウィンドウ</div>
+                            <div class="font-bold text-lg">${eatingWindow.toFixed(1)}時間</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-xs text-gray-500">初食時刻</div>
+                            <div class="font-bold text-lg">${firstMeal.time}</div>
+                        </div>
+                    </div>
+                `;
+                
+                if (fastingFromYesterday > 0) {
+                    statusHtml += `
+                        <div class="text-center p-2 bg-green-100 rounded">
+                            <div class="text-xs text-green-600">昨日からのファスティング</div>
+                            <div class="font-bold text-lg text-green-700">${fastingFromYesterday.toFixed(1)}時間</div>
+                        </div>
+                    `;
+                }
+                
+                // アドバイスを追加
+                if (firstHour <= 7) {
+                    statusHtml += '<div class="text-xs text-orange-600 mt-2">⚠️ 朝早い食事は体に負担をかける可能性があります</div>';
+                }
+                
+                if (eatingWindow > 12) {
+                    statusHtml += '<div class="text-xs text-orange-600 mt-2">⚠️ 食事ウィンドウが長いです。ファスティング時間を延ばしてみましょう</div>';
+                } else if (eatingWindow <= 8) {
+                    statusHtml += '<div class="text-xs text-green-600 mt-2">✓ 理想的な食事ウィンドウです！</div>';
+                }
+                
+                if (fastingFromYesterday >= 16) {
+                    statusHtml += '<div class="text-xs text-green-600 mt-2">✓ 優秀なファスティング時間です！</div>';
+                }
+                
+                statusDiv.innerHTML = statusHtml;
+            };
+            
+            const updateIntervalChart = (days) => {
+                const ctx = document.getElementById('interval-chart').getContext('2d');
+                
+                if (intervalChart) {
+                    intervalChart.destroy();
+                }
+                
+                const endDate = new Date();
+                const startDate = new Date(endDate);
+                startDate.setDate(startDate.getDate() - days + 1);
+                
+                const intervals = calculateFastingIntervals(records);
+                const stats = calculateFastingStats(intervals);
+                
+                const labels = [];
+                const fastingData = [];
+                const eatingWindowData = [];
+                
+                for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                    const dateKey = formatDateKey(d);
+                    labels.push(d.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }));
+                    
+                    const intervalData = intervals.find(i => i.date === dateKey);
+                    if (intervalData) {
+                        eatingWindowData.push(intervalData.eatingWindow);
+                        
+                        // 前日からのファスティング時間を検索
+                        const fastingPeriod = stats?.fastingPeriods?.find(p => p.to === dateKey);
+                        fastingData.push(fastingPeriod ? fastingPeriod.hours : null);
+                    } else {
+                        fastingData.push(null);
+                        eatingWindowData.push(null);
+                    }
+                }
+                
+                intervalChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'ファスティング時間',
+                            data: fastingData,
+                            borderColor: 'rgb(34, 197, 94)',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            tension: 0.1,
+                            yAxisID: 'y'
+                        }, {
+                            label: '食事ウィンドウ',
+                            data: eatingWindowData,
+                            borderColor: 'rgb(251, 146, 60)',
+                            backgroundColor: 'rgba(251, 146, 60, 0.1)',
+                            tension: 0.1,
+                            yAxisID: 'y'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `食事間隔分析 (${days}日間)`
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: '時間'
+                                }
+                            }
+                        },
+                        elements: {
+                            point: {
+                                radius: 4
+                            }
+                        }
+                    }
+                });
+                
+                // スタットを更新
+                if (stats) {
+                    document.getElementById('avg-fasting').textContent = `${stats.avgFasting.toFixed(1)}時間`;
+                    document.getElementById('max-fasting').textContent = `${stats.maxFasting.toFixed(1)}時間`;
+                    document.getElementById('avg-eating-window').textContent = `${stats.avgEatingWindow.toFixed(1)}時間`;
+                    document.getElementById('if-score').textContent = `${stats.ifScore}/100`;
+                } else {
+                    document.getElementById('avg-fasting').textContent = '-';
+                    document.getElementById('max-fasting').textContent = '-';
+                    document.getElementById('avg-eating-window').textContent = '-';
+                    document.getElementById('if-score').textContent = '-';
+                }
+            };
+            
+            // 食事間隔チャートのイベントリスナー
+            let intervalChart;
+            let currentIntervalPeriod = 7;
+            
+            document.getElementById('interval-7days').addEventListener('click', () => {
+                currentIntervalPeriod = 7;
+                updateIntervalChart(7);
+                updateIntervalButtons('interval-7days');
+            });
+            
+            document.getElementById('interval-30days').addEventListener('click', () => {
+                currentIntervalPeriod = 30;
+                updateIntervalChart(30);
+                updateIntervalButtons('interval-30days');
+            });
+            
+            document.getElementById('interval-90days').addEventListener('click', () => {
+                currentIntervalPeriod = 90;
+                updateIntervalChart(90);
+                updateIntervalButtons('interval-90days');
+            });
+            
+            const updateIntervalButtons = (activeId) => {
+                ['interval-7days', 'interval-30days', 'interval-90days'].forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (id === activeId) {
+                        btn.className = 'animated-button px-4 py-2 text-sm bg-orange-100 text-orange-700 border border-orange-300 rounded-full hover:bg-orange-200';
+                    } else {
+                        btn.className = 'px-4 py-2 text-sm border rounded-full hover:bg-gray-100 transition-colors';
+                    }
+                });
+            };
+            
+            // 初期読み込み時に食事間隔分析を追加
+            const originalUpdateCharts = updateCharts;
+            updateCharts = () => {
+                originalUpdateCharts();
+                updateIntervalChart(currentIntervalPeriod);
+                displayTodayFastingStatus();
             };
         });
     </script>
