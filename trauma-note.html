@@ -76,6 +76,23 @@
             db.settings({
               experimentalForceLongPolling: true,
               merge: true,
+              ignoreUndefinedProperties: true,
+              ssl: true,
+              cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+            });
+            
+            // オフライン対応の設定
+            if ('serviceWorker' in navigator) {
+                db.enableNetwork().catch(err => console.warn('Network enable failed:', err));
+            }
+            
+            // 永続化設定
+            db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+                if (err.code === 'failed-precondition') {
+                    console.warn('Persistence failed: Multiple tabs open');
+                } else if (err.code === 'unimplemented') {
+                    console.warn('Persistence not supported');
+                }
             });
         } catch (e) {
             console.error("Could not set Firestore settings", e);
@@ -301,71 +318,156 @@
 
             const generateAiFollowUp = async (noteContent, currentChatHistory) => {
                 setIsAiThinking(true);
-                await new Promise(resolve => setTimeout(resolve, 500));
-
-                const modelTurnCount = currentChatHistory.filter(m => m.role === 'model').length;
-
-                let systemInstructionText;
                 
-                if (modelTurnCount < 3) {
-                    systemInstructionText = "あなたは、ユーザーがトラウマの根本原因を特定するのを助ける、専門的なガイドです。あなたの唯一の目的は、ユーザーが「出来事と感情のセット」のパターンを遡っていく手助けをすることです。以下のルールを厳格に守ってください：\n1. **共感と状況の反映**: まず、ユーザーが書いた「出来事」を簡潔に反映し、その結果生じた「感情」を確認します。例：「（出来事）があって、（感情）を感じられたのですね。」\n2. **類似体験への質問**: 次に、「その『（感情）』を感じるような、**似たような状況や体験**が、過去に他になかったか思い出してみてください。」と質問し、同じパターンの過去の記憶へと促します。これがあなたの基本の質問形式です。\n3. **厳格なルール**: 解釈、助言、要約は絶対にしないでください。質問は常に一つだけにしてください。";
-                } else {
-                    systemInstructionText = "あなたは、ユーザーを労うカウンセラーです。対話が一区切りついたことを伝え、ユーザーの努力を認め、感謝を述べてください。例：「たくさんお話しいただき、ありがとうございます。一度、ここで気持ちを整理してみましょうか？」";
-                }
-
-                const historyForApi = [{ role: "user", parts: [{ text: `これは私のノートです：\n「${noteContent}」` }] }, ...currentChatHistory];
-                
-                // Gemini API用のプロンプトを作成
-                const prompt = `${systemInstructionText}\n\nユーザーのノート内容：\n「${noteContent}」\n\n対話履歴：\n${historyForApi.map(msg => `${msg.role}: ${msg.parts[0].text}`).join('\n')}\n\nあなたの返答:`;
-
                 try {
+                    // 入力内容のバリデーション
+                    if (!noteContent || typeof noteContent !== 'string') {
+                        throw new Error('ノート内容が無効です。');
+                    }
+                    
+                    if (!Array.isArray(currentChatHistory)) {
+                        throw new Error('チャット履歴が無効です。');
+                    }
+
+                    const modelTurnCount = currentChatHistory.filter(m => m && m.role === 'model').length;
+
+                    let systemInstructionText;
+                    
+                    if (modelTurnCount < 3) {
+                        systemInstructionText = "あなたは、ユーザーがトラウマの根本原因を特定するのを助ける、専門的なガイドです。あなたの唯一の目的は、ユーザーが「出来事と感情のセット」のパターンを遡っていく手助けをすることです。以下のルールを厳格に守ってください：\n1. **共感と状況の反映**: まず、ユーザーが書いた「出来事」を簡潔に反映し、その結果生じた「感情」を確認します。例：「（出来事）があって、（感情）を感じられたのですね。」\n2. **類似体験への質問**: 次に、「その『（感情）』を感じるような、**似たような状況や体験**が、過去に他になかったか思い出してみてください。」と質問し、同じパターンの過去の記憶へと促します。これがあなたの基本の質問形式です。\n3. **厳格なルール**: 解釈、助言、要約は絶対にしないでください。質問は常に一つだけにしてください。";
+                    } else {
+                        systemInstructionText = "あなたは、ユーザーを労うカウンセラーです。対話が一区切りついたことを伝え、ユーザーの努力を認め、感謝を述べてください。例：「たくさんお話しいただき、ありがとうございます。一度、ここで気持ちを整理してみましょうか？」";
+                    }
+                    
+                    // 入力内容をサニタイズ
+                    const sanitizedNoteContent = noteContent.replace(/[<>"'&]/g, '');
+                    const sanitizedHistory = currentChatHistory.filter(msg => 
+                        msg && msg.role && msg.parts && msg.parts[0] && msg.parts[0].text
+                    );
+
+                    const historyForApi = [{ role: "user", parts: [{ text: `これは私のノートです：\n「${sanitizedNoteContent}」` }] }, ...sanitizedHistory];
+                    
+                    // Gemini API用のプロンプトを作成
+                    const prompt = `${systemInstructionText}\n\nユーザーのノート内容：\n「${sanitizedNoteContent}」\n\n対話履歴：\n${historyForApi.map(msg => `${msg.role}: ${msg.parts[0].text}`).join('\n')}\n\nあなたの返答:`;
+
                     // リトライ機能付きのAPI呼び出し
                     const makeApiCall = async (retryCount = 0) => {
+                        // API キーの存在確認（セキュリティ対策のため、本来は環境変数またはサーバーサイドで処理すべき）
                         const apiKey = "AIzaSyAdjWYPpgAnLfIflzpTBth1N5NN1_qHa0E";
+                        if (!apiKey) {
+                            throw new Error('API設定エラー: APIキーが設定されていません。');
+                        }
+                        
                         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                         
                         const requestBody = {
                             contents: [{
                                 parts: [{ text: prompt }]
-                            }]
+                            }],
+                            safetySettings: [
+                                {
+                                    category: "HARM_CATEGORY_HARASSMENT",
+                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                },
+                                {
+                                    category: "HARM_CATEGORY_HATE_SPEECH",
+                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                }
+                            ],
+                            generationConfig: {
+                                temperature: 0.7,
+                                topK: 40,
+                                topP: 0.95,
+                                maxOutputTokens: 1024,
+                                stopSequences: []
+                            }
                         };
 
-                        const response = await fetch(apiUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(requestBody)
-                        });
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒タイムアウト
 
-                        if (!response.ok) {
-                            if (response.status === 503 && retryCount < 3) {
-                                // 503エラーの場合、少し待ってからリトライ
-                                await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
-                                return makeApiCall(retryCount + 1);
+                        try {
+                            const response = await fetch(apiUrl, {
+                                method: 'POST',
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    'User-Agent': 'TraumaNote/1.0',
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify(requestBody),
+                                signal: controller.signal
+                            });
+                            
+                            clearTimeout(timeoutId);
+
+                            if (!response.ok) {
+                                const errorText = await response.text();
+                                console.error('API Error Response:', errorText);
+                                
+                                if (response.status === 503 && retryCount < 3) {
+                                    // 503エラーの場合、指数バックオフでリトライ
+                                    const delay = Math.min(2000 * Math.pow(2, retryCount), 10000);
+                                    console.log(`Retrying in ${delay}ms (attempt ${retryCount + 1}/3)`);
+                                    await new Promise(resolve => setTimeout(resolve, delay));
+                                    return makeApiCall(retryCount + 1);
+                                }
+                                
+                                throw new Error(`API Error: ${response.status} - ${response.statusText}`);
                             }
-                            throw new Error(`API Error: ${response.status} - ${response.statusText}`);
-                        }
 
-                        return response.json();
+                            const result = await response.json();
+                            
+                            // レスポンスの構造を検証
+                            if (!result.candidates || !result.candidates[0] || !result.candidates[0].content) {
+                                console.error('Invalid API Response:', result);
+                                throw new Error('API応答の形式が正しくありません。');
+                            }
+                            
+                            return result;
+                        } catch (fetchError) {
+                            clearTimeout(timeoutId);
+                            if (fetchError.name === 'AbortError') {
+                                throw new Error('リクエストがタイムアウトしました。ネットワーク接続を確認してください。');
+                            }
+                            throw fetchError;
+                        }
                     };
 
                     const result = await makeApiCall();
-                    const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text || 'AI応答を取得できませんでした。';
+                    const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    
+                    if (!aiResponse) {
+                        throw new Error('AIからの応答が取得できませんでした。');
+                    }
                     
                     return { role: 'model', parts: [{ text: aiResponse }] };
+                    
                 } catch (err) {
                     console.error('AI生成エラー:', err);
                     let errorMessage = 'AIとの通信でエラーが発生しました。';
                     
-                    if (err.message.includes('503')) {
-                        errorMessage = 'AI サーバーが一時的に利用できません。しばらく時間をおいてから再度お試しください。';
+                    if (err.message.includes('API設定エラー')) {
+                        errorMessage = 'システム設定エラーが発生しました。管理者にお問い合わせください。';
+                    } else if (err.message.includes('タイムアウト')) {
+                        errorMessage = 'AIサーバーへの接続がタイムアウトしました。ネットワーク接続を確認して再度お試しください。';
+                    } else if (err.message.includes('503')) {
+                        errorMessage = 'AIサーバーが一時的に利用できません。しばらく時間をおいてから再度お試しください。';
                     } else if (err.message.includes('429')) {
                         errorMessage = 'API使用制限に達しました。しばらく時間をおいてから再度お試しください。';
-                    } else if (err.message.includes('401')) {
+                    } else if (err.message.includes('401') || err.message.includes('403')) {
                         errorMessage = 'API認証エラーです。管理者にお問い合わせください。';
+                    } else if (err.message.includes('400')) {
+                        errorMessage = 'リクエストの形式が正しくありません。再度お試しください。';
                     } else if (err.code === 'unauthenticated') {
                         errorMessage = 'ログインが必要です。';
                     } else if (err.code === 'permission-denied') {
                         errorMessage = '権限がありません。';
+                    } else if (err.message.includes('ネットワーク') || err.message.includes('network')) {
+                        errorMessage = 'ネットワークエラーが発生しました。接続を確認して再度お試しください。';
+                    } else if (err.message.includes('quota')) {
+                        errorMessage = 'API使用制限に達しました。しばらく時間をおいてから再度お試しください。';
+                    } else if (err.message.includes('blocked')) {
+                        errorMessage = 'コンテンツがブロックされました。別の表現で試してください。';
                     } else if (err.message) {
                         errorMessage = `エラー: ${err.message}`;
                     }
@@ -378,61 +480,202 @@
 
 
             const handleOpenChat = async (note) => {
-                setActiveChatNoteId(note.id);
-                if (!note.chatHistory || note.chatHistory.length === 0) {
-                    const aiResponse = await generateAiFollowUp(note.content, []);
-                    await db.collection(notesCollectionPath).doc(note.id).update({ chatHistory: [aiResponse] });
+                try {
+                    if (!note || !note.id) {
+                        throw new Error('ノートの情報が不正です。');
+                    }
+                    
+                    setActiveChatNoteId(note.id);
+                    
+                    if (!note.chatHistory || note.chatHistory.length === 0) {
+                        console.log('AI対話を開始します...');
+                        const aiResponse = await generateAiFollowUp(note.content, []);
+                        
+                        // データベース更新をトランザクションで実行
+                        const noteRef = db.collection(notesCollectionPath).doc(note.id);
+                        await db.runTransaction(async (transaction) => {
+                            const doc = await transaction.get(noteRef);
+                            if (!doc.exists) {
+                                throw new Error('ノートが見つかりません。');
+                            }
+                            
+                            transaction.update(noteRef, { 
+                                chatHistory: [aiResponse],
+                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                        });
+                        
+                        console.log('AI対話の初期化が完了しました。');
+                    }
+                } catch (error) {
+                    console.error('チャット開始エラー:', error);
+                    alert(`チャットの開始に失敗しました: ${error.message}`);
+                    setActiveChatNoteId(null);
                 }
             };
 
 
             const handleSendMessage = async (userMessage) => {
-                const activeNote = notes.find(n => n.id === activeChatNoteId);
-                if (!activeNote) return;
+                try {
+                    const activeNote = notes.find(n => n.id === activeChatNoteId);
+                    if (!activeNote) {
+                        throw new Error('アクティブなノートが見つかりません。');
+                    }
+                    
+                    if (!userMessage || typeof userMessage !== 'string' || userMessage.trim() === '') {
+                        throw new Error('メッセージが空です。');
+                    }
+                    
+                    console.log('ユーザーメッセージを処理中...', userMessage);
 
-
-                const newUserMessage = { role: 'user', parts: [{ text: userMessage }] };
-                const currentHistory = activeNote.chatHistory || [];
-                const currentHistoryWithUserMsg = [...currentHistory, newUserMessage];
-                
-                const noteRef = db.collection(notesCollectionPath).doc(activeNote.id);
-                await noteRef.update({ chatHistory: currentHistoryWithUserMsg });
-                
-                const aiResponse = await generateAiFollowUp(activeNote.content, currentHistoryWithUserMsg);
-                
-                const finalHistory = [...currentHistoryWithUserMsg, aiResponse];
-                await noteRef.update({ chatHistory: finalHistory });
+                    const newUserMessage = { role: 'user', parts: [{ text: userMessage.trim() }] };
+                    const currentHistory = activeNote.chatHistory || [];
+                    const currentHistoryWithUserMsg = [...currentHistory, newUserMessage];
+                    
+                    const noteRef = db.collection(notesCollectionPath).doc(activeNote.id);
+                    
+                    // トランザクションでデータ整合性を保証
+                    await db.runTransaction(async (transaction) => {
+                        const doc = await transaction.get(noteRef);
+                        if (!doc.exists) {
+                            throw new Error('ノートが見つかりません。');
+                        }
+                        
+                        // ユーザーメッセージを保存
+                        transaction.update(noteRef, { 
+                            chatHistory: currentHistoryWithUserMsg,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    });
+                    
+                    console.log('AI応答を生成中...');
+                    const aiResponse = await generateAiFollowUp(activeNote.content, currentHistoryWithUserMsg);
+                    
+                    const finalHistory = [...currentHistoryWithUserMsg, aiResponse];
+                    
+                    // AI応答を保存
+                    await db.runTransaction(async (transaction) => {
+                        const doc = await transaction.get(noteRef);
+                        if (!doc.exists) {
+                            throw new Error('ノートが見つかりません。');
+                        }
+                        
+                        transaction.update(noteRef, { 
+                            chatHistory: finalHistory,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    });
+                    
+                    console.log('メッセージの処理が完了しました。');
+                } catch (error) {
+                    console.error('メッセージ送信エラー:', error);
+                    alert(`メッセージの送信に失敗しました: ${error.message}`);
+                }
             };
             
             const handleSaveChatToNewNote = async () => {
-                const activeNote = notes.find(n => n.id === activeChatNoteId);
-                if (!activeNote || !activeNote.chatHistory) return;
+                try {
+                    const activeNote = notes.find(n => n.id === activeChatNoteId);
+                    if (!activeNote || !activeNote.chatHistory) {
+                        throw new Error('保存するチャット履歴がありません。');
+                    }
 
-
-                const userMessages = activeNote.chatHistory.filter(msg => msg.role === 'user');
-                
-                for (const msg of userMessages) {
-                    await handleAddNote(msg.parts[0].text);
+                    const userMessages = activeNote.chatHistory.filter(msg => 
+                        msg && msg.role === 'user' && msg.parts && msg.parts[0] && msg.parts[0].text
+                    );
+                    
+                    if (userMessages.length === 0) {
+                        throw new Error('保存するユーザーメッセージがありません。');
+                    }
+                    
+                    console.log(`${userMessages.length}個のユーザーメッセージを新しいノートとして保存します...`);
+                    
+                    // バッチでノートを作成
+                    const batch = db.batch();
+                    const notesCollectionRef = db.collection(notesCollectionPath);
+                    
+                    userMessages.forEach(msg => {
+                        const newNoteRef = notesCollectionRef.doc();
+                        batch.set(newNoteRef, {
+                            content: msg.parts[0].text,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            chatHistory: [],
+                            source: 'chat_extraction'
+                        });
+                    });
+                    
+                    await batch.commit();
+                    
+                    setActiveChatNoteId(null);
+                    console.log('チャット履歴が新しいノートとして保存されました。');
+                } catch (error) {
+                    console.error('チャット保存エラー:', error);
+                    alert(`チャットの保存に失敗しました: ${error.message}`);
                 }
-                
-                setActiveChatNoteId(null);
             };
             
             const handleSaveSingleMessage = async (messageText) => {
-                await handleAddNote(messageText);
+                try {
+                    if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') {
+                        throw new Error('保存するメッセージが空です。');
+                    }
+                    
+                    console.log('単一メッセージをノートとして保存します...', messageText);
+                    await handleAddNote(messageText.trim());
+                    console.log('メッセージの保存が完了しました。');
+                } catch (error) {
+                    console.error('メッセージ保存エラー:', error);
+                    alert(`メッセージの保存に失敗しました: ${error.message}`);
+                }
             };
 
 
             const handleContinueChat = async () => {
-                const activeNote = notes.find(n => n.id === activeChatNoteId);
-                if (!activeNote) return;
-                
-                const noteRef = db.collection(notesCollectionPath).doc(activeNote.id);
-                await noteRef.update({ chatHistory: [] });
-
-
-                const aiResponse = await generateAiFollowUp(activeNote.content, []);
-                await noteRef.update({ chatHistory: [aiResponse] });
+                try {
+                    const activeNote = notes.find(n => n.id === activeChatNoteId);
+                    if (!activeNote) {
+                        throw new Error('アクティブなノートが見つかりません。');
+                    }
+                    
+                    console.log('チャットを継続します...');
+                    
+                    const noteRef = db.collection(notesCollectionPath).doc(activeNote.id);
+                    
+                    // トランザクションでチャット履歴をリセットして新しいAI応答を生成
+                    await db.runTransaction(async (transaction) => {
+                        const doc = await transaction.get(noteRef);
+                        if (!doc.exists) {
+                            throw new Error('ノートが見つかりません。');
+                        }
+                        
+                        // チャット履歴をクリア
+                        transaction.update(noteRef, { 
+                            chatHistory: [],
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    });
+                    
+                    console.log('新しいAI応答を生成中...');
+                    const aiResponse = await generateAiFollowUp(activeNote.content, []);
+                    
+                    // 新しいAI応答を保存
+                    await db.runTransaction(async (transaction) => {
+                        const doc = await transaction.get(noteRef);
+                        if (!doc.exists) {
+                            throw new Error('ノートが見つかりません。');
+                        }
+                        
+                        transaction.update(noteRef, { 
+                            chatHistory: [aiResponse],
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    });
+                    
+                    console.log('チャットの継続が完了しました。');
+                } catch (error) {
+                    console.error('チャット継続エラー:', error);
+                    alert(`チャットの継続に失敗しました: ${error.message}`);
+                }
             };
 
 
