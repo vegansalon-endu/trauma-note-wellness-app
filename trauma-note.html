@@ -319,9 +319,28 @@
                 const prompt = `${systemInstructionText}\n\nユーザーのノート内容：\n「${noteContent}」\n\n対話履歴：\n${historyForApi.map(msg => `${msg.role}: ${msg.parts[0].text}`).join('\n')}\n\nあなたの返答:`;
 
                 try {
-                    const generateAiReport = functions.httpsCallable('generateAiReport');
-                    const result = await generateAiReport({ prompt: prompt });
-                    const aiResponse = result.data;
+                    // 一時的に直接Gemini APIを呼び出し（テスト用）
+                    const apiKey = "AIzaSyAdjWYPpgAnLfIflzpTBth1N5NN1_qHa0E";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                    
+                    const requestBody = {
+                        contents: [{
+                            parts: [{ text: prompt }]
+                        }]
+                    };
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API Error: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text || 'AI応答を取得できませんでした。';
                     
                     return { role: 'model', parts: [{ text: aiResponse }] };
                 } catch (err) {
