@@ -314,17 +314,27 @@
                 }
 
                 const historyForApi = [{ role: "user", parts: [{ text: `これは私のノートです：\n「${noteContent}」` }] }, ...currentChatHistory];
-                const prompt = `${systemInstructionText}\n\n対話履歴：\n${historyForApi.map(msg => `${msg.role}: ${msg.parts[0].text}`).join('\n')}`;
+                
+                // Gemini API用のプロンプトを作成
+                const prompt = `${systemInstructionText}\n\nユーザーのノート内容：\n「${noteContent}」\n\n対話履歴：\n${historyForApi.map(msg => `${msg.role}: ${msg.parts[0].text}`).join('\n')}\n\nあなたの返答:`;
 
                 try {
                     const generateAiReport = functions.httpsCallable('generateAiReport');
-                    const result = await generateAiReport({ prompt });
+                    const result = await generateAiReport({ prompt: prompt });
                     const aiResponse = result.data;
                     
                     return { role: 'model', parts: [{ text: aiResponse }] };
                 } catch (err) {
                     console.error('AI生成エラー:', err);
-                    return { role: 'model', parts: [{ text: 'エラーが発生しました。' }] };
+                    let errorMessage = 'エラーが発生しました。';
+                    if (err.code === 'unauthenticated') {
+                        errorMessage = 'ログインが必要です。';
+                    } else if (err.code === 'permission-denied') {
+                        errorMessage = '権限がありません。';
+                    } else if (err.message) {
+                        errorMessage = `エラー: ${err.message}`;
+                    }
+                    return { role: 'model', parts: [{ text: errorMessage }] };
                 } finally {
                     setIsAiThinking(false);
                 }
