@@ -721,11 +721,13 @@
                             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                         });
                         
-                        // AIによる一日全体の食事評価を生成
-                        await generateDailyFoodSummary(dateKey);
-                        
                         alert('記録を保存しました！');
                         loadRecords();
+                        
+                        // 記録読み込み後にAI評価を実行
+                        setTimeout(() => {
+                            generateDailyFoodSummary(dateKey);
+                        }, 1000);
                         
                     } catch (error) {
                         console.error('記録の保存に失敗しました:', error);
@@ -1401,8 +1403,20 @@ JSON形式:
             // 一日全体の食事評価生成
             const generateDailyFoodSummary = async (dateKey) => {
                 try {
-                    const record = records[dateKey];
+                    console.log('AI評価開始:', dateKey);
+                    
+                    // データベースから直接最新データを取得
+                    const docRef = db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).doc(dateKey);
+                    const doc = await docRef.get();
+                    
+                    if (!doc.exists) {
+                        console.log('記録が見つかりません:', dateKey);
+                        return;
+                    }
+                    
+                    const record = doc.data();
                     if (!record || !record.meal_entries || record.meal_entries.length === 0) {
+                        console.log('食事エントリがありません:', record);
                         return;
                     }
                     
@@ -1457,20 +1471,20 @@ ${mealSummary}
                             const summary = JSON.parse(jsonMatch[0]);
                             
                             // 評価結果をデータベースに保存
-                            const docRef = db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).doc(dateKey);
                             await docRef.update({
                                 daily_food_summary: summary,
                                 ai_analyzed: true,
-                                ai_analysis_date: new Date().toISOString()
-                            });
-                            
-                            // 既存の簡易評価も自動設定
-                            await docRef.update({
+                                ai_analysis_date: new Date().toISOString(),
+                                // 既存の簡易評価も自動設定
                                 animal_food: summary.animal_food_summary,
                                 sugar_intake: summary.carb_summary,
-                                // meal_frequencyは実際の食事回数を設定
                                 meal_frequency: meals.length.toString()
                             });
+                            
+                            console.log('AI評価完了:', summary);
+                            
+                            // 記録を再読み込みしてコメントを表示
+                            loadRecords();
                         }
                     }
                 } catch (error) {
@@ -1637,6 +1651,8 @@ ${mealSummary}
                 const dateKey = formatDateKey(today);
                 const todayRecord = records[dateKey];
                 
+                console.log('今日の食事表示:', dateKey, todayRecord);
+                
                 if (!todayRecord || !todayRecord.meal_entries || todayRecord.meal_entries.length === 0) {
                     todayMealsContainer.innerHTML = '<p class="text-xs text-gray-500">まだ今日の食事が記録されていません</p>';
                     return;
@@ -1668,6 +1684,8 @@ ${mealSummary}
                 const today = new Date();
                 const dateKey = formatDateKey(today);
                 const todayRecord = records[dateKey];
+                
+                console.log('AI評価コメント表示:', dateKey, todayRecord?.daily_food_summary);
                 
                 if (!todayRecord || !todayRecord.daily_food_summary) {
                     document.getElementById('ai-food-comment').classList.add('hidden');
