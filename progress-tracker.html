@@ -264,6 +264,19 @@
                                     <option value="4">4回以上</option>
                                 </select>
                             </div>
+                            
+                            <!-- AI評価コメント表示エリア -->
+                            <div id="ai-food-comment" class="hidden p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-200">
+                                <h4 class="font-semibold text-sm mb-2 flex items-center">
+                                    <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">🤖</span>
+                                    AI食事評価
+                                </h4>
+                                <div id="ai-comment-content" class="text-sm space-y-2">
+                                    <p id="overall-comment" class="font-medium"></p>
+                                    <p id="timing-comment" class="text-gray-600"></p>
+                                    <p id="advice-comment" class="text-blue-600"></p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -693,11 +706,23 @@
                             throw new Error('ユーザーが認証されていません');
                         }
                         
-                        await db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).doc(dateKey).set({
+                        // 既存の記録を取得してマージ
+                        const docRef = db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).doc(dateKey);
+                        const existingDoc = await docRef.get();
+                        let existingData = {};
+                        if (existingDoc.exists) {
+                            existingData = existingDoc.data();
+                        }
+                        
+                        await docRef.set({
+                            ...existingData,
                             ...data,
                             date: firebase.firestore.Timestamp.fromDate(today),
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                         });
+                        
+                        // AIによる一日全体の食事評価を生成
+                        await generateDailyFoodSummary(dateKey);
                         
                         alert('記録を保存しました！');
                         loadRecords();
@@ -736,6 +761,9 @@
                     
                     // 今日の食事一覧を更新
                     displayTodayMeals();
+                    
+                    // AI評価コメントを表示
+                    displayAIFoodComment();
                     
                 } catch (error) {
                     console.error('記録の読み込みに失敗しました:', error);
@@ -1370,6 +1398,86 @@ JSON形式:
                 document.getElementById('food-details').innerHTML = details;
             };
             
+            // 一日全体の食事評価生成
+            const generateDailyFoodSummary = async (dateKey) => {
+                try {
+                    const record = records[dateKey];
+                    if (!record || !record.meal_entries || record.meal_entries.length === 0) {
+                        return;
+                    }
+                    
+                    // 一日の食事を時系列で整理
+                    const meals = record.meal_entries.sort((a, b) => a.time.localeCompare(b.time));
+                    const mealSummary = meals.map(meal => `${meal.time}: ${meal.content} (${meal.amount || ''})${meal.description ? ` - ${meal.description}` : ''}`).join('\\n');
+                    
+                    const prompt = `以下の一日の食事内容を分析して、栄養バランスと健康面での評価を日本語で簡潔にコメントしてください：
+
+【一日の食事内容】
+${mealSummary}
+
+【評価項目】
+1. 全体的な栄養バランス
+2. 動物性食品の摂取状況
+3. 糖質の摂取状況
+4. タンパク質の摂取状況
+5. 食事タイミング
+6. 改善アドバイス
+
+【出力形式】
+{
+  "overall_comment": "今日の食事バランスは良好です。タンパク質がしっかり摂れていますね。",
+  "animal_food_summary": "moderate",
+  "carb_summary": "little",
+  "protein_summary": "moderate",
+  "timing_comment": "食事間隔が適切で、規則正しい食生活ができています。",
+  "advice": "夕食の野菜を増やすとさらに良いでしょう。"
+}`;
+                    
+                    const apiKey = "AIzaSyAdjWYPpgAnLfIflzpTBth1N5NN1_qHa0E";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }]
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`API Error: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    
+                    if (aiResponse) {
+                        const jsonMatch = aiResponse.match(/\\{[\\s\\S]*\\}/);
+                        if (jsonMatch) {
+                            const summary = JSON.parse(jsonMatch[0]);
+                            
+                            // 評価結果をデータベースに保存
+                            const docRef = db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).doc(dateKey);
+                            await docRef.update({
+                                daily_food_summary: summary,
+                                ai_analyzed: true,
+                                ai_analysis_date: new Date().toISOString()
+                            });
+                            
+                            // 既存の簡易評価も自動設定
+                            await docRef.update({
+                                animal_food: summary.animal_food_summary,
+                                sugar_intake: summary.carb_summary,
+                                // meal_frequencyは実際の食事回数を設定
+                                meal_frequency: meals.length.toString()
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('一日食事評価生成エラー:', error);
+                }
+            };
+            
             // 食事モーダルの設定
             const setupMealModal = () => {
                 // 食事追加ボタンのクリック
@@ -1553,6 +1661,26 @@ JSON形式:
                 });
                 
                 todayMealsContainer.innerHTML = html;
+            };
+            
+            // AI食事評価コメント表示
+            const displayAIFoodComment = () => {
+                const today = new Date();
+                const dateKey = formatDateKey(today);
+                const todayRecord = records[dateKey];
+                
+                if (!todayRecord || !todayRecord.daily_food_summary) {
+                    document.getElementById('ai-food-comment').classList.add('hidden');
+                    return;
+                }
+                
+                const summary = todayRecord.daily_food_summary;
+                
+                document.getElementById('overall-comment').textContent = summary.overall_comment || '';
+                document.getElementById('timing-comment').textContent = summary.timing_comment || '';
+                document.getElementById('advice-comment').textContent = summary.advice || '';
+                
+                document.getElementById('ai-food-comment').classList.remove('hidden');
             };
             
             // グローバル関数（HTMLから呼び出し用）
