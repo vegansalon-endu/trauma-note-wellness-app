@@ -527,6 +527,88 @@
             </div>
         </div>
 
+        <!-- 相関分析グラフ -->
+        <div class="glass-card p-8 mb-8">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-2xl font-bold flex items-center">
+                    <span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg mr-3 shadow-lg">🔍</span>
+                    相関分析
+                </h2>
+                <div class="flex gap-2">
+                    <button id="correlation-7days" class="animated-button px-4 py-2 text-sm bg-indigo-100 text-indigo-700 border border-indigo-300 rounded-full hover:bg-indigo-200">7日</button>
+                    <button id="correlation-30days" class="px-4 py-2 text-sm border rounded-full hover:bg-gray-100 transition-colors">30日</button>
+                    <button id="correlation-90days" class="px-4 py-2 text-sm border rounded-full hover:bg-gray-100 transition-colors">90日</button>
+                </div>
+            </div>
+            
+            <!-- 相関分析タブ -->
+            <div class="mb-6">
+                <div class="flex gap-2 mb-6">
+                    <button id="tab-weight-correlation" class="animated-button px-4 py-2 text-sm bg-gradient-to-r from-pink-500 to-red-500 text-white rounded-full">体重との相関</button>
+                    <button id="tab-mood-correlation" class="px-4 py-2 text-sm border rounded-full hover:bg-gray-100 transition-colors">気分との相関</button>
+                    <button id="tab-health-correlation" class="px-4 py-2 text-sm border rounded-full hover:bg-gray-100 transition-colors">体調との相関</button>
+                    <button id="tab-comprehensive-correlation" class="px-4 py-2 text-sm border rounded-full hover:bg-gray-100 transition-colors">総合分析</button>
+                </div>
+            </div>
+            
+            <!-- 相関分析コンテンツ -->
+            <div id="correlation-content">
+                <div class="h-64 mb-6">
+                    <canvas id="correlation-chart"></canvas>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass-card p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
+                        <h4 class="font-bold text-lg mb-4 text-indigo-800">相関係数</h4>
+                        <div id="correlation-stats" class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">動物性食品</span>
+                                <span id="animal-correlation" class="font-bold text-indigo-600">-</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">糖質摂取</span>
+                                <span id="carbs-correlation" class="font-bold text-indigo-600">-</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">タンパク質</span>
+                                <span id="protein-correlation" class="font-bold text-indigo-600">-</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">ファスティング時間</span>
+                                <span id="fasting-correlation" class="font-bold text-indigo-600">-</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">食事回数</span>
+                                <span id="meal-count-correlation" class="font-bold text-indigo-600">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6 bg-gradient-to-br from-green-50 to-emerald-50">
+                        <h4 class="font-bold text-lg mb-4 text-emerald-800">分析結果</h4>
+                        <div id="correlation-insights" class="space-y-2 text-sm">
+                            <p class="text-gray-600">データを分析中...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                    <h4 class="font-bold text-sm mb-2 text-blue-800">相関係数の読み方</h4>
+                    <div class="text-xs text-blue-700 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <span class="font-semibold text-green-600">0.7以上</span>: 強い正の相関
+                        </div>
+                        <div>
+                            <span class="font-semibold text-orange-600">0.3-0.7</span>: 中程度の相関
+                        </div>
+                        <div>
+                            <span class="font-semibold text-red-600">-0.7以下</span>: 強い負の相関
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- カレンダー表示 -->
         <div class="glass-card p-8">
             <div class="flex justify-between items-center mb-8">
@@ -2332,12 +2414,552 @@ ${mealSummary}
                 });
             };
             
-            // 初期読み込み時に食事間隔分析を追加
+            // 相関分析関数
+            const calculateCorrelation = (x, y) => {
+                const validPairs = [];
+                for (let i = 0; i < x.length; i++) {
+                    if (x[i] !== null && y[i] !== null && !isNaN(x[i]) && !isNaN(y[i])) {
+                        validPairs.push({ x: x[i], y: y[i] });
+                    }
+                }
+                
+                if (validPairs.length < 3) return null;
+                
+                const n = validPairs.length;
+                const sumX = validPairs.reduce((sum, p) => sum + p.x, 0);
+                const sumY = validPairs.reduce((sum, p) => sum + p.y, 0);
+                const sumXY = validPairs.reduce((sum, p) => sum + p.x * p.y, 0);
+                const sumX2 = validPairs.reduce((sum, p) => sum + p.x * p.x, 0);
+                const sumY2 = validPairs.reduce((sum, p) => sum + p.y * p.y, 0);
+                
+                const numerator = n * sumXY - sumX * sumY;
+                const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+                
+                if (denominator === 0) return null;
+                return numerator / denominator;
+            };
+            
+            const prepareCorrelationData = (days) => {
+                const endDate = new Date();
+                const startDate = new Date(endDate);
+                startDate.setDate(startDate.getDate() - days + 1);
+                
+                const data = [];
+                const intervals = calculateFastingIntervals(records);
+                const stats = calculateFastingStats(intervals);
+                
+                for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                    const dateKey = formatDateKey(d);
+                    const record = records[dateKey];
+                    
+                    if (record) {
+                        const levelToNumber = {
+                            'none': 0,
+                            'little': 1,
+                            'moderate': 2,
+                            'much': 3
+                        };
+                        
+                        const intervalData = intervals.find(i => i.date === dateKey);
+                        const fastingPeriod = stats?.fastingPeriods?.find(p => p.to === dateKey);
+                        
+                        data.push({
+                            date: dateKey,
+                            weight: record.weight || null,
+                            mood: record.mood || null,
+                            stress: record.stress || null,
+                            fatigue: record.fatigue || null,
+                            digestion: record.digestion || null,
+                            sleep: record.sleep || null,
+                            animalFood: levelToNumber[record.animal_food] ?? null,
+                            carbs: levelToNumber[record.sugar_intake] ?? null,
+                            protein: levelToNumber[record.protein_level] ?? null,
+                            fastingHours: fastingPeriod ? fastingPeriod.hours : null,
+                            eatingWindow: intervalData ? intervalData.eatingWindow : null,
+                            mealCount: intervalData ? intervalData.mealCount : null
+                        });
+                    } else {
+                        data.push({
+                            date: dateKey,
+                            weight: null,
+                            mood: null,
+                            stress: null,
+                            fatigue: null,
+                            digestion: null,
+                            sleep: null,
+                            animalFood: null,
+                            carbs: null,
+                            protein: null,
+                            fastingHours: null,
+                            eatingWindow: null,
+                            mealCount: null
+                        });
+                    }
+                }
+                
+                return data;
+            };
+            
+            const updateCorrelationChart = (days, targetVariable) => {
+                const ctx = document.getElementById('correlation-chart').getContext('2d');
+                
+                if (correlationChart) {
+                    correlationChart.destroy();
+                }
+                
+                const data = prepareCorrelationData(days);
+                
+                const labels = data.map(d => {
+                    const date = new Date(d.date);
+                    return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+                });
+                
+                const targetData = data.map(d => d[targetVariable]);
+                
+                const datasets = [];
+                const colors = {
+                    animalFood: 'rgb(239, 68, 68)',
+                    carbs: 'rgb(251, 146, 60)',
+                    protein: 'rgb(59, 130, 246)',
+                    fastingHours: 'rgb(34, 197, 94)',
+                    mealCount: 'rgb(168, 85, 247)'
+                };
+                
+                // メインターゲットデータを追加
+                let targetLabel = '';
+                let targetColor = '';
+                
+                switch (targetVariable) {
+                    case 'weight':
+                        targetLabel = '体重';
+                        targetColor = 'rgb(236, 72, 153)';
+                        break;
+                    case 'mood':
+                        targetLabel = '気分';
+                        targetColor = 'rgb(251, 191, 36)';
+                        break;
+                    case 'stress':
+                        targetLabel = 'ストレス';
+                        targetColor = 'rgb(239, 68, 68)';
+                        break;
+                    case 'fatigue':
+                        targetLabel = '疲労感';
+                        targetColor = 'rgb(99, 102, 241)';
+                        break;
+                    case 'digestion':
+                        targetLabel = '消化の調子';
+                        targetColor = 'rgb(34, 197, 94)';
+                        break;
+                    case 'sleep':
+                        targetLabel = '睡眠の質';
+                        targetColor = 'rgb(168, 85, 247)';
+                        break;
+                }
+                
+                datasets.push({
+                    label: targetLabel,
+                    data: targetData,
+                    borderColor: targetColor,
+                    backgroundColor: targetColor.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+                    tension: 0.1,
+                    yAxisID: 'y1'
+                });
+                
+                // 食事データを追加
+                const foodVariables = ['animalFood', 'carbs', 'protein', 'fastingHours', 'mealCount'];
+                foodVariables.forEach(variable => {
+                    const variableData = data.map(d => d[variable]);
+                    let label = '';
+                    
+                    switch (variable) {
+                        case 'animalFood':
+                            label = '動物性食品';
+                            break;
+                        case 'carbs':
+                            label = '糖質';
+                            break;
+                        case 'protein':
+                            label = 'タンパク質';
+                            break;
+                        case 'fastingHours':
+                            label = 'ファスティング時間';
+                            break;
+                        case 'mealCount':
+                            label = '食事回数';
+                            break;
+                    }
+                    
+                    datasets.push({
+                        label: label,
+                        data: variableData,
+                        borderColor: colors[variable],
+                        backgroundColor: colors[variable].replace('rgb', 'rgba').replace(')', ', 0.1)'),
+                        tension: 0.1,
+                        yAxisID: 'y2'
+                    });
+                });
+                
+                correlationChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `${targetLabel}と食事データの相関分析 (${days}日間)`
+                            }
+                        },
+                        scales: {
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: targetLabel
+                                }
+                            },
+                            y2: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: '食事データ'
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                }
+                            }
+                        },
+                        elements: {
+                            point: {
+                                radius: 3
+                            }
+                        }
+                    }
+                });
+                
+                // 相関係数を計算して表示
+                const correlations = {};
+                foodVariables.forEach(variable => {
+                    const variableData = data.map(d => d[variable]);
+                    const correlation = calculateCorrelation(targetData, variableData);
+                    correlations[variable] = correlation;
+                });
+                
+                updateCorrelationStats(correlations);
+                generateCorrelationInsights(correlations, targetVariable);
+            };
+            
+            const updateCorrelationStats = (correlations) => {
+                const formatCorrelation = (value) => {
+                    if (value === null) return '-';
+                    return value.toFixed(3);
+                };
+                
+                const getCorrelationColor = (value) => {
+                    if (value === null) return 'text-gray-500';
+                    if (Math.abs(value) >= 0.7) return 'text-red-600';
+                    if (Math.abs(value) >= 0.3) return 'text-orange-600';
+                    return 'text-green-600';
+                };
+                
+                document.getElementById('animal-correlation').textContent = formatCorrelation(correlations.animalFood);
+                document.getElementById('animal-correlation').className = `font-bold ${getCorrelationColor(correlations.animalFood)}`;
+                
+                document.getElementById('carbs-correlation').textContent = formatCorrelation(correlations.carbs);
+                document.getElementById('carbs-correlation').className = `font-bold ${getCorrelationColor(correlations.carbs)}`;
+                
+                document.getElementById('protein-correlation').textContent = formatCorrelation(correlations.protein);
+                document.getElementById('protein-correlation').className = `font-bold ${getCorrelationColor(correlations.protein)}`;
+                
+                document.getElementById('fasting-correlation').textContent = formatCorrelation(correlations.fastingHours);
+                document.getElementById('fasting-correlation').className = `font-bold ${getCorrelationColor(correlations.fastingHours)}`;
+                
+                document.getElementById('meal-count-correlation').textContent = formatCorrelation(correlations.mealCount);
+                document.getElementById('meal-count-correlation').className = `font-bold ${getCorrelationColor(correlations.mealCount)}`;
+            };
+            
+            const generateCorrelationInsights = (correlations, targetVariable) => {
+                const insights = [];
+                
+                const getVariableName = (variable) => {
+                    switch (variable) {
+                        case 'weight': return '体重';
+                        case 'mood': return '気分';
+                        case 'stress': return 'ストレス';
+                        case 'fatigue': return '疲労感';
+                        case 'digestion': return '消化の調子';
+                        case 'sleep': return '睡眠の質';
+                        default: return variable;
+                    }
+                };
+                
+                const targetName = getVariableName(targetVariable);
+                
+                // 強い相関をチェック
+                Object.entries(correlations).forEach(([key, value]) => {
+                    if (value !== null) {
+                        let foodName = '';
+                        switch (key) {
+                            case 'animalFood':
+                                foodName = '動物性食品の摂取';
+                                break;
+                            case 'carbs':
+                                foodName = '糖質の摂取';
+                                break;
+                            case 'protein':
+                                foodName = 'タンパク質の摂取';
+                                break;
+                            case 'fastingHours':
+                                foodName = 'ファスティング時間';
+                                break;
+                            case 'mealCount':
+                                foodName = '食事回数';
+                                break;
+                        }
+                        
+                        if (Math.abs(value) >= 0.7) {
+                            const direction = value > 0 ? '正の' : '負の';
+                            insights.push(`🔍 ${foodName}と${targetName}に強い${direction}相関があります（${value.toFixed(3)}）`);
+                        } else if (Math.abs(value) >= 0.3) {
+                            const direction = value > 0 ? '正の' : '負の';
+                            insights.push(`🔍 ${foodName}と${targetName}に中程度の${direction}相関があります（${value.toFixed(3)}）`);
+                        }
+                    }
+                });
+                
+                // アドバイスを追加
+                if (targetVariable === 'weight') {
+                    if (correlations.fastingHours && correlations.fastingHours < -0.3) {
+                        insights.push('✨ ファスティング時間を延ばすことで体重管理に効果がありそうです');
+                    }
+                    if (correlations.mealCount && correlations.mealCount > 0.3) {
+                        insights.push('✨ 食事回数を減らすことで体重管理に効果がありそうです');
+                    }
+                }
+                
+                if (targetVariable === 'mood' || targetVariable === 'stress') {
+                    if (correlations.animalFood && correlations.animalFood > 0.3) {
+                        insights.push('✨ 動物性食品を減らすことでメンタルヘルスが改善しそうです');
+                    }
+                    if (correlations.fastingHours && correlations.fastingHours < -0.3) {
+                        insights.push('✨ ファスティングがメンタルヘルスに良い影響を与えているようです');
+                    }
+                }
+                
+                if (insights.length === 0) {
+                    insights.push('現在のデータでは明確な相関関係は見つかりませんでした。より多くのデータを記録してみましょう。');
+                }
+                
+                const insightsElement = document.getElementById('correlation-insights');
+                insightsElement.innerHTML = insights.map(insight => `<p>${insight}</p>`).join('');
+            };
+            
+            // 相関分析イベントリスナー
+            let correlationChart;
+            let currentCorrelationPeriod = 7;
+            let currentCorrelationTarget = 'weight';
+            
+            // 期間ボタン
+            document.getElementById('correlation-7days').addEventListener('click', () => {
+                currentCorrelationPeriod = 7;
+                updateCorrelationChart(7, currentCorrelationTarget);
+                updateCorrelationButtons('correlation-7days');
+            });
+            
+            document.getElementById('correlation-30days').addEventListener('click', () => {
+                currentCorrelationPeriod = 30;
+                updateCorrelationChart(30, currentCorrelationTarget);
+                updateCorrelationButtons('correlation-30days');
+            });
+            
+            document.getElementById('correlation-90days').addEventListener('click', () => {
+                currentCorrelationPeriod = 90;
+                updateCorrelationChart(90, currentCorrelationTarget);
+                updateCorrelationButtons('correlation-90days');
+            });
+            
+            // ターゲットボタン
+            document.getElementById('tab-weight-correlation').addEventListener('click', () => {
+                currentCorrelationTarget = 'weight';
+                updateCorrelationChart(currentCorrelationPeriod, 'weight');
+                updateCorrelationTabs('tab-weight-correlation');
+            });
+            
+            document.getElementById('tab-mood-correlation').addEventListener('click', () => {
+                currentCorrelationTarget = 'mood';
+                updateCorrelationChart(currentCorrelationPeriod, 'mood');
+                updateCorrelationTabs('tab-mood-correlation');
+            });
+            
+            document.getElementById('tab-health-correlation').addEventListener('click', () => {
+                currentCorrelationTarget = 'digestion';
+                updateCorrelationChart(currentCorrelationPeriod, 'digestion');
+                updateCorrelationTabs('tab-health-correlation');
+            });
+            
+            document.getElementById('tab-comprehensive-correlation').addEventListener('click', () => {
+                // 総合分析の場合は複数の指標を表示
+                updateComprehensiveCorrelationChart(currentCorrelationPeriod);
+                updateCorrelationTabs('tab-comprehensive-correlation');
+            });
+            
+            const updateCorrelationButtons = (activeId) => {
+                ['correlation-7days', 'correlation-30days', 'correlation-90days'].forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (id === activeId) {
+                        btn.className = 'animated-button px-4 py-2 text-sm bg-indigo-100 text-indigo-700 border border-indigo-300 rounded-full hover:bg-indigo-200';
+                    } else {
+                        btn.className = 'px-4 py-2 text-sm border rounded-full hover:bg-gray-100 transition-colors';
+                    }
+                });
+            };
+            
+            const updateCorrelationTabs = (activeId) => {
+                ['tab-weight-correlation', 'tab-mood-correlation', 'tab-health-correlation', 'tab-comprehensive-correlation'].forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (id === activeId) {
+                        btn.className = 'animated-button px-4 py-2 text-sm bg-gradient-to-r from-pink-500 to-red-500 text-white rounded-full';
+                    } else {
+                        btn.className = 'px-4 py-2 text-sm border rounded-full hover:bg-gray-100 transition-colors';
+                    }
+                });
+            };
+            
+            const updateComprehensiveCorrelationChart = (days) => {
+                const ctx = document.getElementById('correlation-chart').getContext('2d');
+                
+                if (correlationChart) {
+                    correlationChart.destroy();
+                }
+                
+                const data = prepareCorrelationData(days);
+                const labels = data.map(d => {
+                    const date = new Date(d.date);
+                    return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+                });
+                
+                // 複数の指標を表示
+                const datasets = [
+                    {
+                        label: '体重',
+                        data: data.map(d => d.weight),
+                        borderColor: 'rgb(236, 72, 153)',
+                        backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                        tension: 0.1,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: '気分',
+                        data: data.map(d => d.mood),
+                        borderColor: 'rgb(251, 191, 36)',
+                        backgroundColor: 'rgba(251, 191, 36, 0.1)',
+                        tension: 0.1,
+                        yAxisID: 'y2'
+                    },
+                    {
+                        label: 'ファスティング時間',
+                        data: data.map(d => d.fastingHours),
+                        borderColor: 'rgb(34, 197, 94)',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.1,
+                        yAxisID: 'y3'
+                    }
+                ];
+                
+                correlationChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `総合分析 (${days}日間)`
+                            }
+                        },
+                        scales: {
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: '体重'
+                                }
+                            },
+                            y2: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: '気分・体調'
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                }
+                            },
+                            y3: {
+                                type: 'linear',
+                                display: false,
+                                position: 'right'
+                            }
+                        },
+                        elements: {
+                            point: {
+                                radius: 3
+                            }
+                        }
+                    }
+                });
+                
+                // 総合分析の結果を表示
+                const comprehensiveInsights = [
+                    '🔍 体重、気分、ファスティング時間の全体的なトレンドを表示しています',
+                    '🔍 各指標の連動やパターンを観察して、総合的な健康管理に活用しましょう'
+                ];
+                
+                document.getElementById('correlation-insights').innerHTML = comprehensiveInsights.map(insight => `<p>${insight}</p>`).join('');
+                
+                // 総合的な相関を表示
+                const weightData = data.map(d => d.weight);
+                const moodData = data.map(d => d.mood);
+                const fastingData = data.map(d => d.fastingHours);
+                
+                const weightMoodCorr = calculateCorrelation(weightData, moodData);
+                const weightFastingCorr = calculateCorrelation(weightData, fastingData);
+                const moodFastingCorr = calculateCorrelation(moodData, fastingData);
+                
+                const comprehensiveCorrelations = {
+                    animalFood: null,
+                    carbs: null,
+                    protein: null,
+                    fastingHours: weightFastingCorr,
+                    mealCount: null
+                };
+                
+                updateCorrelationStats(comprehensiveCorrelations);
+            };
+            
+            // 初期読み込み時に食事間隔分析と相関分析を追加
             const originalUpdateCharts = updateCharts;
             updateCharts = () => {
                 originalUpdateCharts();
                 updateIntervalChart(currentIntervalPeriod);
                 displayTodayFastingStatus();
+                updateCorrelationChart(currentCorrelationPeriod, currentCorrelationTarget);
             };
         });
     </script>
