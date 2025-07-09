@@ -693,7 +693,7 @@
                             throw new Error('ユーザーが認証されていません');
                         }
                         
-                        await db.collection('users').doc(currentUser.uid).collection('progress_records').doc(dateKey).set({
+                        await db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).doc(dateKey).set({
                             ...data,
                             date: firebase.firestore.Timestamp.fromDate(today),
                             createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -714,7 +714,7 @@
             // 記録の読み込み
             const loadRecords = async () => {
                 try {
-                    const snapshot = await db.collection('users').doc(currentUser.uid).collection('progress_records').get();
+                    const snapshot = await db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).get();
                     records = {};
                     
                     snapshot.forEach(doc => {
@@ -1277,48 +1277,10 @@
                 return date.toISOString().split('T')[0];
             };
             
-            // AI食事解析機能の設定
+            // AI食事解析機能の設定（旧バージョン - 現在は使用されていません）
             const setupFoodAnalysis = () => {
-                const analyzeFoodBtn = document.getElementById('analyze-food-btn');
-                const foodAnalysisResult = document.getElementById('food-analysis-result');
-                
-                analyzeFoodBtn.addEventListener('click', async () => {
-                    const breakfast = document.querySelector('input[name="breakfast"]').value;
-                    const lunch = document.querySelector('input[name="lunch"]').value;
-                    const dinner = document.querySelector('input[name="dinner"]').value;
-                    const snacks = document.querySelector('input[name="snacks"]').value;
-                    
-                    const meals = [breakfast, lunch, dinner, snacks].filter(meal => meal.trim());
-                    
-                    if (meals.length === 0) {
-                        alert('食事内容を入力してください');
-                        return;
-                    }
-                    
-                    analyzeFoodBtn.textContent = '解析中...';
-                    analyzeFoodBtn.disabled = true;
-                    
-                    try {
-                        const analysis = await analyzeFood(meals.join(', '));
-                        displayFoodAnalysis(analysis);
-                        foodAnalysisResult.classList.remove('hidden');
-                        
-                        // 既存の選択肢を自動設定
-                        if (analysis.animal_food_level) {
-                            document.querySelector('select[name="animal_food"]').value = analysis.animal_food_level;
-                        }
-                        if (analysis.sugar_level) {
-                            document.querySelector('select[name="sugar_intake"]').value = analysis.sugar_level;
-                        }
-                        
-                    } catch (error) {
-                        console.error('食事分析エラー:', error);
-                        alert('食事分析に失敗しました。もう一度お試しください。');
-                    } finally {
-                        analyzeFoodBtn.textContent = 'AI食事分析を実行';
-                        analyzeFoodBtn.disabled = false;
-                    }
-                });
+                // 旧バージョンの食事解析機能は削除されたため、何もしない
+                console.log('setupFoodAnalysis: 新しい個別食事エントリシステムを使用中');
             };
             
             // AI食事分析
@@ -1532,7 +1494,7 @@ JSON形式:
                     }
                     
                     // 既存の記録を取得
-                    const docRef = db.collection('users').doc(currentUser.uid).collection('progress_records').doc(dateKey);
+                    const docRef = db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).doc(dateKey);
                     const doc = await docRef.get();
                     
                     let existingData = {};
@@ -1644,7 +1606,7 @@ JSON形式:
                     mealEntries.splice(index, 1);
                     
                     // データベースを更新
-                    const docRef = db.collection('users').doc(currentUser.uid).collection('progress_records').doc(dateKey);
+                    const docRef = db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).doc(dateKey);
                     await docRef.update({
                         meal_entries: mealEntries,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1680,7 +1642,7 @@ JSON形式:
                     mealEntries[index] = mealData;
                     
                     // データベースを更新
-                    const docRef = db.collection('users').doc(currentUser.uid).collection('progress_records').doc(dateKey);
+                    const docRef = db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).doc(dateKey);
                     await docRef.update({
                         meal_entries: mealEntries,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
