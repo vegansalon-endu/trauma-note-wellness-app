@@ -267,10 +267,15 @@
                             
                             <!-- AI評価コメント表示エリア -->
                             <div id="ai-food-comment" class="hidden p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-200">
-                                <h4 class="font-semibold text-sm mb-2 flex items-center">
-                                    <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">🤖</span>
-                                    AI食事評価
-                                </h4>
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="font-semibold text-sm flex items-center">
+                                        <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">🤖</span>
+                                        AI食事評価
+                                    </h4>
+                                    <button id="refresh-ai-comment" class="text-blue-500 hover:text-blue-700 text-xs underline">
+                                        再評価
+                                    </button>
+                                </div>
                                 <div id="ai-comment-content" class="text-sm space-y-2">
                                     <p id="overall-comment" class="font-medium"></p>
                                     <p id="timing-comment" class="text-gray-600"></p>
@@ -549,6 +554,10 @@
             let currentDate = new Date();
             let records = {};
             let todayMeals = [];
+            
+            // デバッグ用にwindowオブジェクトに追加
+            window.records = records;
+            window.currentUser = null;
 
             const authCheckElement = document.getElementById('auth-check');
             const mainContainer = document.getElementById('main-container');
@@ -578,6 +587,7 @@
             auth.onAuthStateChanged(user => {
                 if (user) {
                     currentUser = user;
+                    window.currentUser = user; // デバッグ用
                     authCheckElement.style.display = 'none';
                     mainContainer.style.display = 'block';
                     initializeApp();
@@ -603,6 +613,7 @@
                 setupNutritionChart();
                 setupFoodAnalysis();
                 setupMealModal();
+                setupAICommentRefresh();
                 loadRecords();
             };
 
@@ -722,12 +733,15 @@
                         });
                         
                         alert('記録を保存しました！');
-                        loadRecords();
+                        await loadRecords();
                         
                         // 記録読み込み後にAI評価を実行
-                        setTimeout(() => {
-                            generateDailyFoodSummary(dateKey);
-                        }, 1000);
+                        console.log('AI評価を呼び出します:', dateKey);
+                        try {
+                            await generateDailyFoodSummary(dateKey);
+                        } catch (error) {
+                            console.error('AI評価エラー:', error);
+                        }
                         
                     } catch (error) {
                         console.error('記録の保存に失敗しました:', error);
@@ -741,12 +755,18 @@
             // 記録の読み込み
             const loadRecords = async () => {
                 try {
+                    console.log('loadRecords開始 - ユーザー:', currentUser?.uid);
                     const snapshot = await db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).get();
                     records = {};
                     
                     snapshot.forEach(doc => {
                         records[doc.id] = doc.data();
                     });
+                    
+                    console.log('loadRecords完了 - records:', records);
+                    
+                    // デバッグ用にwindowオブジェクトも更新
+                    window.records = records;
                     
                     renderCalendar();
                     loadTodayRecord();
@@ -1313,6 +1333,31 @@
                 console.log('setupFoodAnalysis: 新しい個別食事エントリシステムを使用中');
             };
             
+            // AI評価コメント再生成機能の設定
+            const setupAICommentRefresh = () => {
+                const refreshButton = document.getElementById('refresh-ai-comment');
+                if (refreshButton) {
+                    refreshButton.addEventListener('click', async () => {
+                        const today = new Date();
+                        const dateKey = formatDateKey(today);
+                        
+                        console.log('AI評価を手動で再実行:', dateKey);
+                        refreshButton.textContent = '評価中...';
+                        refreshButton.disabled = true;
+                        
+                        try {
+                            await generateDailyFoodSummary(dateKey);
+                        } catch (error) {
+                            console.error('AI評価エラー:', error);
+                            alert('AI評価の生成に失敗しました。');
+                        } finally {
+                            refreshButton.textContent = '再評価';
+                            refreshButton.disabled = false;
+                        }
+                    });
+                }
+            };
+            
             // AI食事分析
             const analyzeFood = async (foodText) => {
                 const prompt = `以下の食事内容を分析して、JSON形式で結果を返してください：
@@ -1401,21 +1446,31 @@ JSON形式:
             };
             
             // 一日全体の食事評価生成
+            // 修正済み: records変数のスコープ問題を解決、デバッグログ追加、エラーハンドリング改善
             const generateDailyFoodSummary = async (dateKey) => {
                 try {
                     console.log('AI評価開始:', dateKey);
+                    console.log('現在のrecords:', records);
+                    console.log('現在のユーザー:', currentUser?.uid);
                     
-                    // データベースから直接最新データを取得
-                    const docRef = db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).doc(dateKey);
-                    const doc = await docRef.get();
+                    // まず、既存のrecordsオブジェクトから記録を取得
+                    let record = records[dateKey];
+                    console.log('records[dateKey]から取得:', record);
                     
-                    if (!doc.exists) {
-                        console.log('記録が見つかりません:', dateKey);
-                        return;
+                    // recordsにない場合は、データベースから直接最新データを取得
+                    if (!record) {
+                        console.log('recordsに見つからないため、データベースから直接取得');
+                        const docRef = db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).doc(dateKey);
+                        const doc = await docRef.get();
+                        
+                        if (!doc.exists) {
+                            console.log('記録が見つかりません:', dateKey);
+                            return;
+                        }
+                        
+                        record = doc.data();
+                        console.log('データベースから取得した記録:', record);
                     }
-                    
-                    const record = doc.data();
-                    console.log('取得した記録:', record);
                     
                     if (!record || !record.meal_entries || record.meal_entries.length === 0) {
                         console.log('食事エントリがありません:', record);
@@ -1456,6 +1511,7 @@ ${mealSummary}
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                     
                     console.log('AI APIリクエスト送信中...');
+                    console.log('送信プロンプト:', prompt);
                     
                     const response = await fetch(apiUrl, {
                         method: 'POST',
@@ -1468,7 +1524,9 @@ ${mealSummary}
                     console.log('AI APIレスポンス:', response.status);
                     
                     if (!response.ok) {
-                        throw new Error(`API Error: ${response.status}`);
+                        const errorText = await response.text();
+                        console.error('API Error Details:', errorText);
+                        throw new Error(`API Error: ${response.status} - ${errorText}`);
                     }
                     
                     const result = await response.json();
@@ -1478,7 +1536,7 @@ ${mealSummary}
                     console.log('AI応答テキスト:', aiResponse);
                     
                     if (aiResponse) {
-                        const jsonMatch = aiResponse.match(/\\{[\\s\\S]*\\}/);
+                        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
                         console.log('JSON抽出:', jsonMatch?.[0]);
                         
                         if (jsonMatch) {
@@ -1486,6 +1544,7 @@ ${mealSummary}
                             console.log('パース済みサマリー:', summary);
                             
                             // 評価結果をデータベースに保存
+                            const docRef = db.collection(`trauma_notes_users/${currentUser.uid}/progress_records`).doc(dateKey);
                             await docRef.update({
                                 daily_food_summary: summary,
                                 ai_analyzed: true,
@@ -1499,8 +1558,13 @@ ${mealSummary}
                             console.log('AI評価完了:', summary);
                             
                             // 記録を再読み込みしてコメントを表示
-                            loadRecords();
+                            await loadRecords();
+                            console.log('AI評価処理完了');
+                        } else {
+                            console.error('JSONが見つかりません:', aiResponse);
                         }
+                    } else {
+                        console.error('AI応答が空です:', result);
                     }
                 } catch (error) {
                     console.error('一日食事評価生成エラー:', error);
@@ -1652,7 +1716,15 @@ ${mealSummary}
                     
                     alert('食事を保存しました！');
                     closeMealModalFunction();
-                    loadRecords(); // 記録を再読み込み
+                    await loadRecords(); // 記録を再読み込み
+                    
+                    // 食事エントリが追加されたのでAI評価を実行
+                    console.log('食事追加後のAI評価を呼び出します:', dateKey);
+                    try {
+                        await generateDailyFoodSummary(dateKey);
+                    } catch (error) {
+                        console.error('AI評価エラー:', error);
+                    }
                     
                 } catch (error) {
                     console.error('食事保存エラー:', error);
@@ -1774,7 +1846,15 @@ ${mealSummary}
                     });
                     
                     alert('食事記録を削除しました');
-                    loadRecords();
+                    await loadRecords();
+                    
+                    // 食事エントリが削除されたのでAI評価を実行
+                    console.log('食事削除後のAI評価を呼び出します:', dateKey);
+                    try {
+                        await generateDailyFoodSummary(dateKey);
+                    } catch (error) {
+                        console.error('AI評価エラー:', error);
+                    }
                     
                 } catch (error) {
                     console.error('削除エラー:', error);
@@ -1811,7 +1891,15 @@ ${mealSummary}
                     
                     alert('食事記録を更新しました！');
                     closeMealModalFunction();
-                    loadRecords();
+                    await loadRecords();
+                    
+                    // 食事エントリが更新されたのでAI評価を実行
+                    console.log('食事更新後のAI評価を呼び出します:', dateKey);
+                    try {
+                        await generateDailyFoodSummary(dateKey);
+                    } catch (error) {
+                        console.error('AI評価エラー:', error);
+                    }
                     
                 } catch (error) {
                     console.error('更新エラー:', error);
