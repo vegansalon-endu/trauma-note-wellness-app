@@ -217,55 +217,23 @@
                     <div>
                         <h3 class="font-semibold mb-3">食生活</h3>
                         <div class="space-y-3">
-                            <!-- AI食事解析セクション -->
+                            <!-- 今日の食事エントリ表示 -->
                             <div class="p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
-                                <h4 class="font-semibold text-sm mb-2 flex items-center">
-                                    <span class="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">🤖</span>
-                                    AI食事解析
-                                </h4>
-                                <div class="space-y-2">
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                        <div>
-                                            <label class="block text-xs font-medium mb-1">朝食</label>
-                                            <input type="text" name="breakfast" placeholder="例：カレー、サラダ" class="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500">
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs font-medium mb-1">昼食</label>
-                                            <input type="text" name="lunch" placeholder="例：パスタ、スープ" class="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500">
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs font-medium mb-1">夕食</label>
-                                            <input type="text" name="dinner" placeholder="例：ご飯、味噌汁" class="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500">
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium mb-1">間食・その他</label>
-                                        <input type="text" name="snacks" placeholder="例：お菓子、果物" class="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500">
-                                    </div>
-                                    <button type="button" id="analyze-food-btn" class="w-full bg-green-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-600 transition text-sm">
-                                        AI食事分析を実行
+                                <div class="flex justify-between items-center mb-3">
+                                    <h4 class="font-semibold text-sm flex items-center">
+                                        <span class="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">🍽️</span>
+                                        今日の食事記録
+                                    </h4>
+                                    <button type="button" id="add-meal-btn" class="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600 transition">
+                                        + 食事を追加
                                     </button>
-                                    <div id="food-analysis-result" class="hidden p-3 bg-white rounded border text-sm">
-                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-                                            <div class="text-center p-2 bg-red-50 rounded">
-                                                <p class="font-medium">動物性食品</p>
-                                                <p id="animal-score" class="text-lg font-bold text-red-600">-</p>
-                                            </div>
-                                            <div class="text-center p-2 bg-orange-50 rounded">
-                                                <p class="font-medium">糖質</p>
-                                                <p id="carb-score" class="text-lg font-bold text-orange-600">-</p>
-                                            </div>
-                                            <div class="text-center p-2 bg-blue-50 rounded">
-                                                <p class="font-medium">タンパク質</p>
-                                                <p id="protein-score" class="text-lg font-bold text-blue-600">-</p>
-                                            </div>
-                                        </div>
-                                        <div id="food-details" class="mt-2 text-xs text-gray-600"></div>
-                                    </div>
+                                </div>
+                                <div id="today-meals" class="space-y-2 max-h-48 overflow-y-auto">
+                                    <p class="text-xs text-gray-500">まだ今日の食事が記録されていません</p>
                                 </div>
                             </div>
                             
-                            <!-- 既存の食事記録セクション -->
+                            <!-- 既存の食事記録セクション（簡易版として残す） -->
                             <div>
                                 <label class="block text-sm font-medium mb-2">動物性食品の摂取</label>
                                 <select name="animal_food" class="w-full border rounded-lg px-3 py-2">
@@ -471,6 +439,78 @@
                 <div id="modal-content"></div>
             </div>
         </div>
+
+        <!-- 食事追加モーダル -->
+        <div id="meal-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-lg max-w-lg w-full p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">食事を追加</h3>
+                    <button id="close-meal-modal" class="text-gray-500 hover:text-gray-700">&times;</button>
+                </div>
+                <form id="meal-form" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">食事時間</label>
+                            <input type="time" id="meal-time" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">量</label>
+                            <input type="text" id="meal-amount" placeholder="例：1皿、200g" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">食事内容</label>
+                        <input type="text" id="meal-content" placeholder="例：カレーライス" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-500" required>
+                    </div>
+                    <button type="button" id="analyze-meal-btn" class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition">
+                        AI分析を実行
+                    </button>
+                    <div id="meal-analysis-result" class="hidden space-y-3 p-4 bg-gray-50 rounded">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">詳細な内容（編集可能）</label>
+                            <textarea id="meal-description" class="w-full border rounded px-3 py-2 h-20 focus:ring-2 focus:ring-green-500" placeholder="AIが推定した材料や詳細"></textarea>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">動物性食品</label>
+                                <select id="meal-animal" class="w-full border rounded px-2 py-1 text-sm">
+                                    <option value="none">なし</option>
+                                    <option value="little">少し</option>
+                                    <option value="moderate">普通</option>
+                                    <option value="much">多い</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">糖質</label>
+                                <select id="meal-carbs" class="w-full border rounded px-2 py-1 text-sm">
+                                    <option value="none">なし</option>
+                                    <option value="little">少し</option>
+                                    <option value="moderate">普通</option>
+                                    <option value="much">多い</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">タンパク質</label>
+                                <select id="meal-protein" class="w-full border rounded px-2 py-1 text-sm">
+                                    <option value="none">なし</option>
+                                    <option value="little">少し</option>
+                                    <option value="moderate">普通</option>
+                                    <option value="much">多い</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 pt-4">
+                        <button type="button" id="cancel-meal-btn" class="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-50">
+                            キャンセル
+                        </button>
+                        <button type="submit" id="save-meal-btn" class="flex-1 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 transition" disabled>
+                            保存
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -495,6 +535,7 @@
             let currentUser = null;
             let currentDate = new Date();
             let records = {};
+            let todayMeals = [];
 
             const authCheckElement = document.getElementById('auth-check');
             const mainContainer = document.getElementById('main-container');
@@ -509,6 +550,16 @@
             const closeModal = document.getElementById('close-modal');
             const modalDate = document.getElementById('modal-date');
             const modalContent = document.getElementById('modal-content');
+            
+            // 食事モーダル関連
+            const addMealBtn = document.getElementById('add-meal-btn');
+            const mealModal = document.getElementById('meal-modal');
+            const closeMealModal = document.getElementById('close-meal-modal');
+            const cancelMealBtn = document.getElementById('cancel-meal-btn');
+            const mealForm = document.getElementById('meal-form');
+            const analyzeMealBtn = document.getElementById('analyze-meal-btn');
+            const saveMealBtn = document.getElementById('save-meal-btn');
+            const todayMealsContainer = document.getElementById('today-meals');
 
             // 認証状態の確認
             auth.onAuthStateChanged(user => {
@@ -538,6 +589,7 @@
                 setupWeightChart();
                 setupNutritionChart();
                 setupFoodAnalysis();
+                setupMealModal();
                 loadRecords();
             };
 
@@ -633,6 +685,14 @@
                     const dateKey = formatDateKey(today);
                     
                     try {
+                        console.log('保存開始 - ユーザーID:', currentUser?.uid);
+                        console.log('保存データ:', data);
+                        console.log('日付キー:', dateKey);
+                        
+                        if (!currentUser || !currentUser.uid) {
+                            throw new Error('ユーザーが認証されていません');
+                        }
+                        
                         await db.collection('users').doc(currentUser.uid).collection('progress_records').doc(dateKey).set({
                             ...data,
                             date: firebase.firestore.Timestamp.fromDate(today),
@@ -644,7 +704,9 @@
                         
                     } catch (error) {
                         console.error('記録の保存に失敗しました:', error);
-                        alert('記録の保存に失敗しました。もう一度お試しください。');
+                        console.error('エラーコード:', error.code);
+                        console.error('エラーメッセージ:', error.message);
+                        alert(`記録の保存に失敗しました: ${error.message}`);
                     }
                 });
             };
@@ -671,6 +733,9 @@
                     if (window.updateNutritionChart) {
                         window.updateNutritionChart();
                     }
+                    
+                    // 今日の食事一覧を更新
+                    displayTodayMeals();
                     
                 } catch (error) {
                     console.error('記録の読み込みに失敗しました:', error);
@@ -1143,6 +1208,22 @@
                 
                 let content = '<div class="space-y-3">';
                 
+                // 食事エントリを先に表示
+                if (record.meal_entries && record.meal_entries.length > 0) {
+                    content += '<div class="mb-4"><h4 class="font-medium text-sm mb-2">食事記録</h4>';
+                    const sortedMeals = record.meal_entries.sort((a, b) => a.time.localeCompare(b.time));
+                    sortedMeals.forEach(meal => {
+                        content += `
+                            <div class="record-details">
+                                <span class="font-medium">${meal.time} ${meal.content}</span>
+                                <span class="ml-2 text-xs text-gray-500">${meal.amount || ''}</span>
+                                ${meal.description ? `<div class="text-xs text-gray-600 mt-1">${meal.description}</div>` : ''}
+                            </div>
+                        `;
+                    });
+                    content += '</div>';
+                }
+                
                 Object.keys(labels).forEach(key => {
                     if (record[key]) {
                         let displayValue = record[key];
@@ -1325,6 +1406,294 @@ JSON形式:
                 `;
                 
                 document.getElementById('food-details').innerHTML = details;
+            };
+            
+            // 食事モーダルの設定
+            const setupMealModal = () => {
+                // 食事追加ボタンのクリック
+                addMealBtn.addEventListener('click', () => {
+                    openMealModal();
+                });
+                
+                // モーダルを閉じる
+                closeMealModal.addEventListener('click', () => {
+                    closeMealModalFunction();
+                });
+                
+                cancelMealBtn.addEventListener('click', () => {
+                    closeMealModalFunction();
+                });
+                
+                // モーダル外クリックで閉じる
+                mealModal.addEventListener('click', (e) => {
+                    if (e.target === mealModal) {
+                        closeMealModalFunction();
+                    }
+                });
+                
+                // AI分析ボタン
+                analyzeMealBtn.addEventListener('click', () => {
+                    analyzeMeal();
+                });
+                
+                // フォーム送信
+                mealForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    saveMeal();
+                });
+                
+                // 入力変更時の保存ボタン制御
+                document.getElementById('meal-content').addEventListener('input', updateSaveButton);
+                document.getElementById('meal-time').addEventListener('input', updateSaveButton);
+            };
+            
+            // 食事モーダルを開く
+            const openMealModal = () => {
+                // 現在時刻をデフォルト設定
+                const now = new Date();
+                const timeString = now.toTimeString().slice(0, 5);
+                document.getElementById('meal-time').value = timeString;
+                
+                // フォームをリセット
+                mealForm.reset();
+                document.getElementById('meal-time').value = timeString; // リセット後に再設定
+                document.getElementById('meal-analysis-result').classList.add('hidden');
+                updateSaveButton();
+                
+                mealModal.classList.remove('hidden');
+            };
+            
+            // 食事モーダルを閉じる
+            const closeMealModalFunction = () => {
+                mealModal.classList.add('hidden');
+            };
+            
+            // 保存ボタンの有効/無効制御
+            const updateSaveButton = () => {
+                const content = document.getElementById('meal-content').value.trim();
+                const time = document.getElementById('meal-time').value;
+                saveMealBtn.disabled = !content || !time;
+            };
+            
+            // AI食事分析（個別エントリ用）
+            const analyzeMeal = async () => {
+                const content = document.getElementById('meal-content').value.trim();
+                if (!content) {
+                    alert('食事内容を入力してください');
+                    return;
+                }
+                
+                analyzeMealBtn.textContent = '分析中...';
+                analyzeMealBtn.disabled = true;
+                
+                try {
+                    const analysis = await analyzeFood(content);
+                    
+                    // 結果を編集可能な形で表示
+                    document.getElementById('meal-description').value = analysis.ingredients ? analysis.ingredients.join(', ') : '';
+                    document.getElementById('meal-animal').value = analysis.animal_food_level || 'moderate';
+                    document.getElementById('meal-carbs').value = analysis.sugar_level || 'moderate';
+                    document.getElementById('meal-protein').value = analysis.protein_level || 'moderate';
+                    
+                    document.getElementById('meal-analysis-result').classList.remove('hidden');
+                    updateSaveButton();
+                    
+                } catch (error) {
+                    console.error('食事分析エラー:', error);
+                    alert('分析に失敗しました。手動で入力してください。');
+                    document.getElementById('meal-analysis-result').classList.remove('hidden');
+                } finally {
+                    analyzeMealBtn.textContent = 'AI分析を実行';
+                    analyzeMealBtn.disabled = false;
+                }
+            };
+            
+            // 食事エントリを保存
+            const saveMeal = async () => {
+                const mealData = {
+                    id: Date.now().toString(),
+                    time: document.getElementById('meal-time').value,
+                    content: document.getElementById('meal-content').value.trim(),
+                    amount: document.getElementById('meal-amount').value.trim(),
+                    description: document.getElementById('meal-description').value.trim(),
+                    animal_food_level: document.getElementById('meal-animal').value,
+                    sugar_level: document.getElementById('meal-carbs').value,
+                    protein_level: document.getElementById('meal-protein').value,
+                    created_at: new Date().toISOString()
+                };
+                
+                try {
+                    // 今日の記録に追加
+                    const today = new Date();
+                    const dateKey = formatDateKey(today);
+                    
+                    if (!currentUser || !currentUser.uid) {
+                        throw new Error('ユーザーが認証されていません');
+                    }
+                    
+                    // 既存の記録を取得
+                    const docRef = db.collection('users').doc(currentUser.uid).collection('progress_records').doc(dateKey);
+                    const doc = await docRef.get();
+                    
+                    let existingData = {};
+                    if (doc.exists) {
+                        existingData = doc.data();
+                    }
+                    
+                    // 食事エントリを追加
+                    const mealEntries = existingData.meal_entries || [];
+                    mealEntries.push(mealData);
+                    
+                    await docRef.set({
+                        ...existingData,
+                        meal_entries: mealEntries,
+                        date: firebase.firestore.Timestamp.fromDate(today),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    
+                    alert('食事を保存しました！');
+                    closeMealModalFunction();
+                    loadRecords(); // 記録を再読み込み
+                    
+                } catch (error) {
+                    console.error('食事保存エラー:', error);
+                    alert(`食事の保存に失敗しました: ${error.message}`);
+                }
+            };
+            
+            // 今日の食事一覧を表示
+            const displayTodayMeals = () => {
+                const today = new Date();
+                const dateKey = formatDateKey(today);
+                const todayRecord = records[dateKey];
+                
+                if (!todayRecord || !todayRecord.meal_entries || todayRecord.meal_entries.length === 0) {
+                    todayMealsContainer.innerHTML = '<p class="text-xs text-gray-500">まだ今日の食事が記録されていません</p>';
+                    return;
+                }
+                
+                const meals = todayRecord.meal_entries.sort((a, b) => a.time.localeCompare(b.time));
+                
+                let html = '';
+                meals.forEach((meal, index) => {
+                    html += `
+                        <div class="flex justify-between items-center p-2 bg-white rounded border text-xs">
+                            <div class="flex-1">
+                                <div class="font-medium">${meal.time} - ${meal.content}</div>
+                                <div class="text-gray-500">${meal.amount || ''} ${meal.description || ''}</div>
+                            </div>
+                            <div class="flex gap-1">
+                                <button onclick="editMeal('${dateKey}', ${index})" class="text-blue-500 hover:text-blue-700">✏️</button>
+                                <button onclick="deleteMeal('${dateKey}', ${index})" class="text-red-500 hover:text-red-700">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                todayMealsContainer.innerHTML = html;
+            };
+            
+            // グローバル関数（HTMLから呼び出し用）
+            window.editMeal = async (dateKey, index) => {
+                const record = records[dateKey];
+                if (!record || !record.meal_entries || !record.meal_entries[index]) {
+                    alert('食事データが見つかりません');
+                    return;
+                }
+                
+                const meal = record.meal_entries[index];
+                
+                // モーダルに既存データを設定
+                document.getElementById('meal-time').value = meal.time;
+                document.getElementById('meal-content').value = meal.content;
+                document.getElementById('meal-amount').value = meal.amount || '';
+                document.getElementById('meal-description').value = meal.description || '';
+                document.getElementById('meal-animal').value = meal.animal_food_level || 'moderate';
+                document.getElementById('meal-carbs').value = meal.sugar_level || 'moderate';
+                document.getElementById('meal-protein').value = meal.protein_level || 'moderate';
+                
+                // 分析結果エリアを表示
+                document.getElementById('meal-analysis-result').classList.remove('hidden');
+                updateSaveButton();
+                
+                // 編集モードでモーダルを開く
+                mealModal.classList.remove('hidden');
+                
+                // 編集用の処理に変更
+                const originalSubmitHandler = mealForm.onsubmit;
+                mealForm.onsubmit = async (e) => {
+                    e.preventDefault();
+                    await updateMeal(dateKey, index);
+                    mealForm.onsubmit = originalSubmitHandler;
+                };
+            };
+            
+            window.deleteMeal = async (dateKey, index) => {
+                if (!confirm('この食事記録を削除しますか？')) {
+                    return;
+                }
+                
+                try {
+                    const record = records[dateKey];
+                    if (!record || !record.meal_entries) {
+                        throw new Error('記録が見つかりません');
+                    }
+                    
+                    // 食事エントリから削除
+                    const mealEntries = [...record.meal_entries];
+                    mealEntries.splice(index, 1);
+                    
+                    // データベースを更新
+                    const docRef = db.collection('users').doc(currentUser.uid).collection('progress_records').doc(dateKey);
+                    await docRef.update({
+                        meal_entries: mealEntries,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    alert('食事記録を削除しました');
+                    loadRecords();
+                    
+                } catch (error) {
+                    console.error('削除エラー:', error);
+                    alert(`削除に失敗しました: ${error.message}`);
+                }
+            };
+            
+            // 食事エントリを更新
+            const updateMeal = async (dateKey, index) => {
+                const mealData = {
+                    id: records[dateKey].meal_entries[index].id, // 既存IDを保持
+                    time: document.getElementById('meal-time').value,
+                    content: document.getElementById('meal-content').value.trim(),
+                    amount: document.getElementById('meal-amount').value.trim(),
+                    description: document.getElementById('meal-description').value.trim(),
+                    animal_food_level: document.getElementById('meal-animal').value,
+                    sugar_level: document.getElementById('meal-carbs').value,
+                    protein_level: document.getElementById('meal-protein').value,
+                    created_at: records[dateKey].meal_entries[index].created_at, // 作成日時を保持
+                    updated_at: new Date().toISOString()
+                };
+                
+                try {
+                    const record = records[dateKey];
+                    const mealEntries = [...record.meal_entries];
+                    mealEntries[index] = mealData;
+                    
+                    // データベースを更新
+                    const docRef = db.collection('users').doc(currentUser.uid).collection('progress_records').doc(dateKey);
+                    await docRef.update({
+                        meal_entries: mealEntries,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    alert('食事記録を更新しました！');
+                    closeMealModalFunction();
+                    loadRecords();
+                    
+                } catch (error) {
+                    console.error('更新エラー:', error);
+                    alert(`更新に失敗しました: ${error.message}`);
+                }
             };
         });
     </script>
