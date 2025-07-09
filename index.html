@@ -18,9 +18,9 @@
     <!-- 未ログイン時に表示 -->
     <div id="login-view" class="w-full max-w-sm">
         <div class="bg-white p-8 rounded-xl shadow-lg">
-            <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">ログイン</h1>
+            <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">ログイン・新規登録</h1>
             <div id="login-error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 hidden" role="alert">
-                <span class="block sm:inline">メールアドレスまたはパスワードが違います。</span>
+                <span id="error-message" class="block sm:inline">エラーが発生しました。</span>
             </div>
             <form id="login-form" class="space-y-4">
                 <div>
@@ -31,8 +31,31 @@
                     <label for="password" class="block text-sm font-medium text-gray-700">パスワード</label>
                     <input type="password" id="password" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
-                <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    ログイン
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <button type="submit" id="login-btn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        ログイン
+                    </button>
+                    <button type="button" id="signup-btn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        新規登録
+                    </button>
+                </div>
+                <div class="relative my-4">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="bg-white px-2 text-gray-500">または</span>
+                    </div>
+                </div>
+                <button type="button" id="google-signin-btn" class="w-full flex items-center justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <svg class="w-5 h-5 mr-2" viewBox="0 0 48 48">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24s.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                        <path fill="none" d="M0 0h48v48H0z"></path>
+                    </svg>
+                    Googleでログイン
                 </button>
             </form>
         </div>
@@ -85,6 +108,9 @@
             const logoutButton = document.getElementById('logout-button');
             const loginForm = document.getElementById('login-form');
             const loginError = document.getElementById('login-error');
+            const errorMessage = document.getElementById('error-message');
+            const signupBtn = document.getElementById('signup-btn');
+            const googleSigninBtn = document.getElementById('google-signin-btn');
 
             auth.onAuthStateChanged(user => {
                 if (user) {
@@ -97,15 +123,90 @@
                 }
             });
 
+            const showError = (message) => {
+                errorMessage.textContent = message;
+                loginError.classList.remove('hidden');
+            };
+
+            const hideError = () => {
+                loginError.classList.add('hidden');
+            };
+
+            // ログイン処理
             loginForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
-                loginError.classList.add('hidden');
+                hideError();
+                
                 auth.signInWithEmailAndPassword(email, password)
                     .catch(error => {
                         console.error("Login failed:", error);
-                        loginError.classList.remove('hidden');
+                        let message = 'ログインに失敗しました。';
+                        if (error.code === 'auth/user-not-found') {
+                            message = 'このメールアドレスは登録されていません。';
+                        } else if (error.code === 'auth/wrong-password') {
+                            message = 'パスワードが間違っています。';
+                        } else if (error.code === 'auth/invalid-email') {
+                            message = 'メールアドレスの形式が正しくありません。';
+                        }
+                        showError(message);
+                    });
+            });
+
+            // 新規登録処理
+            signupBtn.addEventListener('click', () => {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                if (!email || !password) {
+                    showError('メールアドレスとパスワードを入力してください。');
+                    return;
+                }
+                
+                if (password.length < 6) {
+                    showError('パスワードは6文字以上で入力してください。');
+                    return;
+                }
+                
+                hideError();
+                
+                auth.createUserWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        console.log('Account created successfully:', userCredential.user);
+                    })
+                    .catch(error => {
+                        console.error("Signup failed:", error);
+                        let message = '新規登録に失敗しました。';
+                        if (error.code === 'auth/email-already-in-use') {
+                            message = 'このメールアドレスは既に使用されています。';
+                        } else if (error.code === 'auth/invalid-email') {
+                            message = 'メールアドレスの形式が正しくありません。';
+                        } else if (error.code === 'auth/weak-password') {
+                            message = 'パスワードが弱すぎます。6文字以上で入力してください。';
+                        }
+                        showError(message);
+                    });
+            });
+
+            // Googleログイン処理
+            googleSigninBtn.addEventListener('click', () => {
+                hideError();
+                const provider = new firebase.auth.GoogleAuthProvider();
+                
+                auth.signInWithPopup(provider)
+                    .then((result) => {
+                        console.log('Google sign-in successful:', result.user);
+                    })
+                    .catch(error => {
+                        console.error("Google sign-in failed:", error);
+                        let message = 'Googleログインに失敗しました。';
+                        if (error.code === 'auth/popup-closed-by-user') {
+                            message = 'ログインがキャンセルされました。';
+                        } else if (error.code === 'auth/popup-blocked') {
+                            message = 'ポップアップがブロックされました。ブラウザの設定を確認してください。';
+                        }
+                        showError(message);
                     });
             });
 
