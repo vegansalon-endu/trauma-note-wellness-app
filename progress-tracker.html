@@ -1555,20 +1555,22 @@
 
 食事内容: ${foodText}
 
+【重要】この評価は、完全菜食主義（ヴィーガン）かつ糖質制限を基本とする健康理念に基づいて行ってください。
+
 分析項目:
-1. 動物性食品の摂取量（none/little/moderate/much）
-2. 糖質の摂取量（none/little/moderate/much）
-3. タンパク質の摂取量（none/little/moderate/much）
-4. 推定される主な材料（配列）
-5. 栄養バランスの評価
+1. 動物性食品の摂取量（none/little/moderate/much）※動物性食品は減らすべき
+2. 糖質の摂取量（none/little/moderate/much）※糖質は制限すべき
+3. タンパク質の摂取量（none/little/moderate/much）※植物性タンパク質を推奨
+4. 推定される主な材料（配列）※植物性食品を中心に記載
+5. 栄養バランスの評価※ヴィーガン・糖質制限の観点から
 
 JSON形式:
 {
-  "animal_food_level": "moderate",
-  "sugar_level": "much",
+  "animal_food_level": "none",
+  "sugar_level": "little",
   "protein_level": "moderate",
-  "ingredients": ["牛肉", "米", "野菜"],
-  "nutrition_comment": "バランスの取れた食事です"
+  "ingredients": ["大豆ミート", "アーモンド", "葉野菜"],
+  "nutrition_comment": "植物性タンパク質が適切に摂れています"
 }`;
                 
                 try {
@@ -1606,11 +1608,11 @@ JSON形式:
                     console.error('AI食事分析エラー:', error);
                     // フォールバック分析
                     return {
-                        animal_food_level: 'moderate',
-                        sugar_level: 'moderate',
+                        animal_food_level: 'little',
+                        sugar_level: 'little',
                         protein_level: 'moderate',
                         ingredients: ['分析できませんでした'],
-                        nutrition_comment: '分析に失敗しました'
+                        nutrition_comment: '分析に失敗しました（ヴィーガン・糖質制限の原則に基づく評価）'
                     };
                 }
             };
@@ -1680,22 +1682,29 @@ JSON形式:
 【一日の食事内容】
 ${mealSummary}
 
+【重要な評価基準】
+- 完全菜食主義（ヴィーガン）が推奨される
+- 糖質制限が推奨される
+- 植物性タンパク質（大豆、豆類、ナッツ類）の摂取が理想的
+- 動物性食品（肉、魚、卵、乳製品）の摂取は控えるべき
+- 糖質（米、パン、麺類、果物）の摂取は制限すべき
+
 【評価項目】
-1. 全体的な栄養バランス
-2. 動物性食品の摂取状況
-3. 糖質の摂取状況
-4. タンパク質の摂取状況
-5. 食事タイミング
-6. 改善アドバイス
+1. 全体的な栄養バランス（ヴィーガン・糖質制限の観点から）
+2. 動物性食品の摂取状況（少ないほど良い）
+3. 糖質の摂取状況（少ないほど良い）
+4. タンパク質の摂取状況（植物性タンパク質を評価）
+5. 食事タイミング（断食時間を考慮）
+6. 改善アドバイス（植物性食品と低糖質食品を推奨）
 
 【出力形式】
 {
-  "overall_comment": "今日の食事バランスは良好です。タンパク質がしっかり摂れていますね。",
-  "animal_food_summary": "moderate",
+  "overall_comment": "植物性タンパク質が適切に摂れており、糖質制限も守られています。",
+  "animal_food_summary": "little",
   "carb_summary": "little",
   "protein_summary": "moderate",
-  "timing_comment": "食事間隔が適切で、規則正しい食生活ができています。",
-  "advice": "夕食の野菜を増やすとさらに良いでしょう。"
+  "timing_comment": "食事間隔が適切で、断食時間も確保されています。",
+  "advice": "大豆製品やナッツ類を増やすとさらに良いでしょう。"
 }`;
                     
                     const apiKey = "AIzaSyAdjWYPpgAnLfIflzpTBth1N5NN1_qHa0E";
@@ -2735,13 +2744,19 @@ ${mealSummary}
                     }
                 });
                 
-                // アドバイスを追加
+                // ヴィーガン・糖質制限に基づくアドバイスを追加
                 if (targetVariable === 'weight') {
                     if (correlations.fastingHours && correlations.fastingHours < -0.3) {
                         insights.push('✨ ファスティング時間を延ばすことで体重管理に効果がありそうです');
                     }
                     if (correlations.mealCount && correlations.mealCount > 0.3) {
                         insights.push('✨ 食事回数を減らすことで体重管理に効果がありそうです');
+                    }
+                    if (correlations.animalFood && correlations.animalFood > 0.3) {
+                        insights.push('✨ 動物性食品を減らすことで体重管理に効果がありそうです');
+                    }
+                    if (correlations.carbohydrates && correlations.carbohydrates > 0.3) {
+                        insights.push('✨ 糖質制限をすることで体重管理に効果がありそうです');
                     }
                 }
                 
@@ -2751,6 +2766,21 @@ ${mealSummary}
                     }
                     if (correlations.fastingHours && correlations.fastingHours < -0.3) {
                         insights.push('✨ ファスティングがメンタルヘルスに良い影響を与えているようです');
+                    }
+                    if (correlations.carbohydrates && correlations.carbohydrates > 0.3) {
+                        insights.push('✨ 糖質制限がメンタルヘルスに良い影響を与えているようです');
+                    }
+                }
+                
+                if (targetVariable === 'health') {
+                    if (correlations.animalFood && correlations.animalFood > 0.3) {
+                        insights.push('✨ 動物性食品を減らすことで体調改善に効果がありそうです');
+                    }
+                    if (correlations.carbohydrates && correlations.carbohydrates > 0.3) {
+                        insights.push('✨ 糖質制限が体調改善に良い影響を与えているようです');
+                    }
+                    if (correlations.plantProtein && correlations.plantProtein < -0.3) {
+                        insights.push('✨ 植物性タンパク質を増やすことで体調改善に効果がありそうです');
                     }
                 }
                 
