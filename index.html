@@ -15,10 +15,11 @@
 </head>
 <body class="bg-gray-100">
 
-    <!-- 未ログイン時に表示 -->
-    <div id="login-view" class="min-h-screen flex items-center justify-center">
-        <div class="w-full max-w-sm bg-white p-8 rounded-xl shadow-lg">
-            <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">ログイン・新規登録</h1>
+    <!-- ログインモーダル -->
+    <div id="login-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-xl relative">
+            <button id="close-modal" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">ログイン・新規登録</h2>
             <div id="login-error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 hidden" role="alert">
                 <span id="error-message" class="block sm:inline">エラーが発生しました。</span>
             </div>
@@ -61,15 +62,23 @@
         </div>
     </div>
 
-    <!-- ログイン後に表示 -->
-    <div id="logged-in-view" class="hidden min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <!-- メインコンテンツ（常に表示） -->
+    <div id="main-content" class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <!-- ヘッダー -->
         <header class="bg-white shadow-sm">
             <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
                 <h1 class="text-2xl font-bold text-gray-800">エンドゥ・ウェルネス</h1>
                 <div class="flex items-center space-x-4">
-                    <span id="user-email" class="text-sm text-gray-600"></span>
-                    <button id="logout-button" class="text-sm text-gray-500 hover:text-gray-700 px-3 py-1 rounded border hover:bg-gray-50">ログアウト</button>
+                    <!-- 未ログイン時 -->
+                    <div id="auth-buttons" class="flex items-center space-x-2">
+                        <button id="login-trigger" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">ログイン</button>
+                        <button id="signup-trigger" class="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">新規登録</button>
+                    </div>
+                    <!-- ログイン済み時 -->
+                    <div id="user-info" class="hidden flex items-center space-x-4">
+                        <span id="user-email" class="text-sm text-gray-600"></span>
+                        <button id="logout-button" class="text-sm text-gray-500 hover:text-gray-700 px-3 py-1 rounded border hover:bg-gray-50">ログアウト</button>
+                    </div>
                 </div>
             </div>
         </header>
@@ -89,9 +98,9 @@
                 <div class="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-8 text-white mb-12">
                     <h3 class="text-2xl font-bold mb-4">まずは3分で現在の状態を知る</h3>
                     <p class="text-lg mb-6 opacity-90">AI診断で、あなたの心と体の根本原因を分析します</p>
-                    <a href="ai-shindan.html" class="inline-block bg-white text-pink-600 font-bold py-4 px-8 rounded-xl hover:bg-gray-50 transition-all transform hover:scale-105 shadow-lg">
+                    <button onclick="navigateToFeature('ai-shindan.html')" class="inline-block bg-white text-pink-600 font-bold py-4 px-8 rounded-xl hover:bg-gray-50 transition-all transform hover:scale-105 shadow-lg cursor-pointer">
                         🔍 無料AI診断を受ける
-                    </a>
+                    </button>
                 </div>
             </section>
 
@@ -111,9 +120,9 @@
                             <li>✓ 即座に結果表示</li>
                             <li>✓ 個別改善プラン提案</li>
                         </ul>
-                        <a href="ai-shindan.html" class="block w-full text-center bg-pink-500 text-white font-bold py-3 rounded-lg hover:bg-pink-600 transition-colors">
+                        <button onclick="navigateToFeature('ai-shindan.html')" class="block w-full text-center bg-pink-500 text-white font-bold py-3 rounded-lg hover:bg-pink-600 transition-colors">
                             診断を受ける
-                        </a>
+                        </button>
                     </div>
 
                     <!-- トラウマノート -->
@@ -129,9 +138,9 @@
                             <li>✓ 段階的解決サポート</li>
                         </ul>
                         <div class="space-y-2">
-                            <a href="trauma-note.html" class="block w-full text-center bg-blue-500 text-white font-bold py-3 rounded-lg hover:bg-blue-600 transition-colors">
+                            <button onclick="navigateToFeature('trauma-note.html')" class="block w-full text-center bg-blue-500 text-white font-bold py-3 rounded-lg hover:bg-blue-600 transition-colors">
                                 機能を確認
-                            </a>
+                            </button>
                             <p class="text-xs text-gray-400 text-center">※本格利用は有料プランで</p>
                         </div>
                     </div>
@@ -149,9 +158,9 @@
                             <li>✓ 個別最適化アドバイス</li>
                         </ul>
                         <div class="space-y-2">
-                            <a href="progress-tracker.html" class="block w-full text-center bg-green-500 text-white font-bold py-3 rounded-lg hover:bg-green-600 transition-colors">
+                            <button onclick="navigateToFeature('progress-tracker.html')" class="block w-full text-center bg-green-500 text-white font-bold py-3 rounded-lg hover:bg-green-600 transition-colors">
                                 管理を開始
-                            </a>
+                            </button>
                             <p class="text-xs text-gray-400 text-center">※高度分析は有料プランで</p>
                         </div>
                     </div>
@@ -250,6 +259,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
     <script>
+        let currentUser = null;
+        let pendingNavigation = null;
+
         document.addEventListener('DOMContentLoaded', () => {
             const firebaseConfig = {
               apiKey: "AIzaSyCSK2XMhrPQbZ8J1y-Kz3YCoU45rDKv1bM",
@@ -266,8 +278,10 @@
             
             const auth = firebase.auth();
 
-            const loginView = document.getElementById('login-view');
-            const loggedInView = document.getElementById('logged-in-view');
+            // DOM要素の取得
+            const loginModal = document.getElementById('login-modal');
+            const authButtons = document.getElementById('auth-buttons');
+            const userInfo = document.getElementById('user-info');
             const userEmailDisplay = document.getElementById('user-email');
             const logoutButton = document.getElementById('logout-button');
             const loginForm = document.getElementById('login-form');
@@ -275,18 +289,32 @@
             const errorMessage = document.getElementById('error-message');
             const signupBtn = document.getElementById('signup-btn');
             const googleSigninBtn = document.getElementById('google-signin-btn');
+            const loginTrigger = document.getElementById('login-trigger');
+            const signupTrigger = document.getElementById('signup-trigger');
+            const closeModal = document.getElementById('close-modal');
 
+            // 認証状態の監視
             auth.onAuthStateChanged(user => {
+                currentUser = user;
                 if (user) {
-                    loginView.classList.add('hidden');
-                    loggedInView.classList.remove('hidden');
+                    // ログイン済み表示
+                    authButtons.classList.add('hidden');
+                    userInfo.classList.remove('hidden');
                     userEmailDisplay.textContent = user.email;
+                    
+                    // ログイン完了後のリダイレクト処理
+                    if (pendingNavigation) {
+                        window.location.href = pendingNavigation;
+                        pendingNavigation = null;
+                    }
                 } else {
-                    loggedInView.classList.add('hidden');
-                    loginView.classList.remove('hidden');
+                    // 未ログイン表示
+                    userInfo.classList.add('hidden');
+                    authButtons.classList.remove('hidden');
                 }
             });
 
+            // エラー表示関数
             const showError = (message) => {
                 errorMessage.textContent = message;
                 loginError.classList.remove('hidden');
@@ -296,6 +324,31 @@
                 loginError.classList.add('hidden');
             };
 
+            // モーダル表示/非表示
+            const showLoginModal = () => {
+                loginModal.classList.remove('hidden');
+                hideError();
+            };
+
+            const hideLoginModal = () => {
+                loginModal.classList.add('hidden');
+                hideError();
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+            };
+
+            // イベントリスナー
+            loginTrigger.addEventListener('click', showLoginModal);
+            signupTrigger.addEventListener('click', showLoginModal);
+            closeModal.addEventListener('click', hideLoginModal);
+
+            // モーダル外クリックで閉じる
+            loginModal.addEventListener('click', (e) => {
+                if (e.target === loginModal) {
+                    hideLoginModal();
+                }
+            });
+
             // ログイン処理
             loginForm.addEventListener('submit', (e) => {
                 e.preventDefault();
@@ -304,6 +357,9 @@
                 hideError();
                 
                 auth.signInWithEmailAndPassword(email, password)
+                    .then(() => {
+                        hideLoginModal();
+                    })
                     .catch(error => {
                         console.error("Login failed:", error);
                         let message = 'ログインに失敗しました。';
@@ -336,8 +392,8 @@
                 hideError();
                 
                 auth.createUserWithEmailAndPassword(email, password)
-                    .then((userCredential) => {
-                        console.log('Account created successfully:', userCredential.user);
+                    .then(() => {
+                        hideLoginModal();
                     })
                     .catch(error => {
                         console.error("Signup failed:", error);
@@ -359,8 +415,8 @@
                 const provider = new firebase.auth.GoogleAuthProvider();
                 
                 auth.signInWithPopup(provider)
-                    .then((result) => {
-                        console.log('Google sign-in successful:', result.user);
+                    .then(() => {
+                        hideLoginModal();
                     })
                     .catch(error => {
                         console.error("Google sign-in failed:", error);
@@ -374,10 +430,23 @@
                     });
             });
 
+            // ログアウト処理
             logoutButton.addEventListener('click', () => {
                 auth.signOut();
             });
         });
+
+        // 機能ナビゲーション関数（グローバル）
+        function navigateToFeature(featurePage) {
+            if (currentUser) {
+                // ログイン済み - 直接遷移
+                window.location.href = featurePage;
+            } else {
+                // 未ログイン - ログイン後に遷移するよう記録してモーダル表示
+                pendingNavigation = featurePage;
+                document.getElementById('login-modal').classList.remove('hidden');
+            }
+        }
     </script>
 </body>
 </html>
