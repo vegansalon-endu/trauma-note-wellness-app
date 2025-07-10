@@ -699,45 +699,8 @@
                     });
 
                     // Slackに即座に通知を送信
-                    const slackMessage = {
-                        text: `🔔 新しいフィードバックが届きました！`,
-                        blocks: [
-                            {
-                                type: "section",
-                                fields: [
-                                    {
-                                        type: "mrkdwn",
-                                        text: `*ページ:* トラウマノート`
-                                    },
-                                    {
-                                        type: "mrkdwn",
-                                        text: `*タイプ:* ${feedbackType === 'improvement' ? '改善要望' : feedbackType === 'bug' ? 'バグ報告' : 'その他'}`
-                                    },
-                                    {
-                                        type: "mrkdwn",
-                                        text: `*ユーザー:* ${user.email}`
-                                    },
-                                    {
-                                        type: "mrkdwn",
-                                        text: `*時刻:* ${new Date().toLocaleString('ja-JP')}`
-                                    }
-                                ]
-                            },
-                            {
-                                type: "section",
-                                text: {
-                                    type: "mrkdwn",
-                                    text: `*メッセージ:*\n${feedbackText}`
-                                }
-                            }
-                        ]
-                    };
-
-                    await fetch('https://hooks.slack.com/services/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', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(slackMessage)
-                    });
+                    // Slack通知は後でCloud Function経由で実装予定
+                    console.log('フィードバック送信完了（Firestoreに保存済み）');
 
                     alert('フィードバックを送信しました。ありがとうございます！');
                     setShowFeedbackModal(false);

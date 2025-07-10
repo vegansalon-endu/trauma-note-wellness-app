@@ -508,48 +508,22 @@
                     try {
                         console.log('フィードバック送信開始:', { userId: currentUser.uid, feedbackType: typeSelect.value });
                         
-                        // まずSlackに通知を送信（Firestoreは一時的にスキップ）
-                        console.log('Slack通知送信開始...');
-                        const slackMessage = {
-                            text: "新しいフィードバックが届きました！",
-                            blocks: [
-                                {
-                                    type: "section",
-                                    fields: [
-                                        {
-                                            type: "mrkdwn",
-                                            text: `*ページ:* ホーム（ランディング）`
-                                        },
-                                        {
-                                            type: "mrkdwn",
-                                            text: `*タイプ:* ${typeSelect.value === 'improvement' ? '改善要望' : typeSelect.value === 'bug' ? 'バグ報告' : 'その他'}`
-                                        },
-                                        {
-                                            type: "mrkdwn",
-                                            text: `*ユーザー:* ${currentUser.email}`
-                                        },
-                                        {
-                                            type: "mrkdwn",
-                                            text: `*時刻:* ${new Date().toLocaleString('ja-JP')}`
-                                        }
-                                    ]
-                                },
-                                {
-                                    type: "section",
-                                    text: {
-                                        type: "mrkdwn",
-                                        text: `*メッセージ:*\n${feedbackText}`
-                                    }
-                                }
-                            ]
-                        };
-
-                        const slackResponse = await fetch('https://hooks.slack.com/services/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', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(slackMessage)
+                        // Firestoreにフィードバックを保存
+                        console.log('Firestore保存開始...');
+                        await firebase.firestore().collection('feedback').add({
+                            userId: currentUser.uid,
+                            userEmail: currentUser.email,
+                            feedbackType: typeSelect.value,
+                            message: feedbackText,
+                            page: 'index',
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                            userAgent: navigator.userAgent,
+                            status: 'new'
                         });
-                        console.log('Slack通知送信完了:', slackResponse.status);
+                        console.log('Firestore保存完了');
+
+                        // Slack通知は後でCloud Function経由で実装予定
+                        console.log('フィードバック送信完了（Firestoreに保存済み）');
 
                         alert('フィードバックを送信しました。ありがとうございます！');
                         closeFeedback();
