@@ -519,7 +519,7 @@
 
                         // Slackに即座に通知を送信
                         const slackMessage = {
-                            text: `🔔 新しいフィードバックが届きました！`,
+                            text: "新しいフィードバックが届きました！",
                             blocks: [
                                 {
                                     type: "section",
@@ -571,7 +571,7 @@
         });
 
         // 機能ナビゲーション関数（グローバル）
-        function navigateToFeature(featurePage) {
+        window.navigateToFeature = function(featurePage) {
             if (currentUser) {
                 // ログイン済み - 直接遷移
                 window.location.href = featurePage;
@@ -580,7 +580,7 @@
                 pendingNavigation = featurePage;
                 document.getElementById('login-modal').classList.remove('hidden');
             }
-        }
+        };
     </script>
 </body>
 </html>
