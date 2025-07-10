@@ -75,26 +75,37 @@
         // Firestore設定を一度だけ実行
         if (!window.firestoreInitialized) {
             try {
+                // 最新のFirestore設定を適用
                 db.settings({
-                  experimentalForceLongPolling: true,
-                  merge: true,
-                  ignoreUndefinedProperties: true,
-                  ssl: true,
-                  cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+                    experimentalForceLongPolling: false, // 通常のWebSocket接続を使用
+                    merge: true,
+                    ignoreUndefinedProperties: true,
+                    ssl: true,
+                    host: 'firestore.googleapis.com', // 明示的なホスト指定
+                    cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
                 });
                 
-                // 永続化設定
-                db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+                // オフライン永続化設定（エラー処理を強化）
+                db.enablePersistence({ 
+                    synchronizeTabs: true,
+                    experimentalTabSynchronization: true
+                }).then(() => {
+                    console.log('Firestore offline persistence enabled');
+                }).catch(err => {
                     if (err.code === 'failed-precondition') {
-                        console.warn('Persistence failed: Multiple tabs open');
+                        console.warn('複数のタブが開いているため、永続化を無効にしました');
                     } else if (err.code === 'unimplemented') {
-                        console.warn('Persistence not supported');
+                        console.warn('このブラウザでは永続化がサポートされていません');
+                    } else {
+                        console.error('永続化設定エラー:', err);
                     }
                 });
                 
                 window.firestoreInitialized = true;
+                console.log('Firestore initialized successfully');
             } catch (e) {
-                console.error("Could not set Firestore settings", e);
+                console.error("Firestore設定エラー:", e);
+                // 設定に失敗しても継続
             }
         }
 
@@ -356,7 +367,7 @@
 
                     // リトライ機能付きのAPI呼び出し
                     const makeApiCall = async (retryCount = 0) => {
-                        // API キーの存在確認（セキュリティ対策のため、本来は環境変数またはサーバーサイドで処理すべき）
+                        // API キーの取得（本来はCloud Functionまたは環境変数で管理すべき）
                         const apiKey = "AIzaSyB2_fG2KexNapPvM0gA-AThGu5SK6WFLPA";
                         if (!apiKey) {
                             throw new Error('API設定エラー: APIキーが設定されていません。');
@@ -395,11 +406,13 @@
                                 method: 'POST',
                                 headers: { 
                                     'Content-Type': 'application/json',
-                                    'User-Agent': 'TraumaNote/1.0',
-                                    'Accept': 'application/json'
+                                    'Accept': 'application/json',
+                                    'User-Agent': 'TraumaNote/1.0'
                                 },
                                 body: JSON.stringify(requestBody),
-                                signal: controller.signal
+                                signal: controller.signal,
+                                credentials: 'omit', // クロスオリジンでクッキーを送信しない
+                                cache: 'no-cache' // キャッシュを無効にする
                             });
                             
                             clearTimeout(timeoutId);
