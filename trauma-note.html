@@ -72,30 +72,30 @@
         const functions = firebase.functions();
 
 
-        try {
-            db.settings({
-              experimentalForceLongPolling: true,
-              merge: true,
-              ignoreUndefinedProperties: true,
-              ssl: true,
-              cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
-            });
-            
-            // オフライン対応の設定
-            if ('serviceWorker' in navigator) {
-                db.enableNetwork().catch(err => console.warn('Network enable failed:', err));
+        // Firestore設定を一度だけ実行
+        if (!window.firestoreInitialized) {
+            try {
+                db.settings({
+                  experimentalForceLongPolling: true,
+                  merge: true,
+                  ignoreUndefinedProperties: true,
+                  ssl: true,
+                  cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+                });
+                
+                // 永続化設定
+                db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+                    if (err.code === 'failed-precondition') {
+                        console.warn('Persistence failed: Multiple tabs open');
+                    } else if (err.code === 'unimplemented') {
+                        console.warn('Persistence not supported');
+                    }
+                });
+                
+                window.firestoreInitialized = true;
+            } catch (e) {
+                console.error("Could not set Firestore settings", e);
             }
-            
-            // 永続化設定
-            db.enablePersistence({ synchronizeTabs: true }).catch(err => {
-                if (err.code === 'failed-precondition') {
-                    console.warn('Persistence failed: Multiple tabs open');
-                } else if (err.code === 'unimplemented') {
-                    console.warn('Persistence not supported');
-                }
-            });
-        } catch (e) {
-            console.error("Could not set Firestore settings", e);
         }
 
 
@@ -404,10 +404,10 @@
                                 const errorText = await response.text();
                                 console.error('API Error Response:', errorText);
                                 
-                                if (response.status === 503 && retryCount < 3) {
-                                    // 503エラーの場合、指数バックオフでリトライ
-                                    const delay = Math.min(2000 * Math.pow(2, retryCount), 10000);
-                                    console.log(`Retrying in ${delay}ms (attempt ${retryCount + 1}/3)`);
+                                if ((response.status === 503 || response.status === 429) && retryCount < 5) {
+                                    // 503/429エラーの場合、より長い間隔でリトライ
+                                    const delay = Math.min(3000 * Math.pow(2, retryCount), 30000); // 最大30秒まで
+                                    console.log(`API過負荷により再試行します... ${delay}ms後 (${retryCount + 1}/5回目)`);
                                     await new Promise(resolve => setTimeout(resolve, delay));
                                     return makeApiCall(retryCount + 1);
                                 }
@@ -451,9 +451,9 @@
                     } else if (err.message.includes('タイムアウト')) {
                         errorMessage = 'AIサーバーへの接続がタイムアウトしました。ネットワーク接続を確認して再度お試しください。';
                     } else if (err.message.includes('503')) {
-                        errorMessage = 'AIサーバーが一時的に利用できません。しばらく時間をおいてから再度お試しください。';
+                        errorMessage = 'Google AIサーバーが混雑しています。数分待ってから再度お試しください。(Error: 503)';
                     } else if (err.message.includes('429')) {
-                        errorMessage = 'API使用制限に達しました。しばらく時間をおいてから再度お試しください。';
+                        errorMessage = 'API使用制限に達しました。1時間ほど時間をおいてから再度お試しください。(Error: 429)';
                     } else if (err.message.includes('401') || err.message.includes('403')) {
                         errorMessage = 'API認証エラーです。管理者にお問い合わせください。';
                     } else if (err.message.includes('400')) {
