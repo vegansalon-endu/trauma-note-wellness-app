@@ -273,6 +273,7 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
         let currentUser = null;
@@ -293,6 +294,7 @@
             }
             
             const auth = firebase.auth();
+            const db = firebase.firestore();
 
             // DOM要素の取得
             const loginModal = document.getElementById('login-modal');
@@ -510,7 +512,7 @@
                         
                         // Firestoreにフィードバックを保存
                         console.log('Firestore保存開始...');
-                        await firebase.firestore().collection('feedback').add({
+                        await db.collection('feedback').add({
                             userId: currentUser.uid,
                             userEmail: currentUser.email,
                             feedbackType: typeSelect.value,
