@@ -13,11 +13,11 @@
         .hidden { display: none; }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
+<body class="bg-gray-100">
 
     <!-- 未ログイン時に表示 -->
-    <div id="login-view" class="w-full max-w-sm">
-        <div class="bg-white p-8 rounded-xl shadow-lg">
+    <div id="login-view" class="min-h-screen flex items-center justify-center">
+        <div class="w-full max-w-sm bg-white p-8 rounded-xl shadow-lg">
             <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">ログイン・新規登録</h1>
             <div id="login-error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 hidden" role="alert">
                 <span id="error-message" class="block sm:inline">エラーが発生しました。</span>
@@ -62,23 +62,187 @@
     </div>
 
     <!-- ログイン後に表示 -->
-    <div id="logged-in-view" class="hidden">
-        <div class="text-center bg-white p-10 rounded-xl shadow-lg max-w-sm mx-auto">
-            <h1 class="text-3xl font-bold mb-2 text-gray-800">ようこそ</h1>
-            <p id="user-email" class="text-gray-600 mb-8"></p>
-            <div class="space-y-4">
-                <a href="trauma-note.html" class="block w-full bg-blue-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-600 transition-transform transform hover:scale-105">
-                    Trauma-note
-                </a>
-                <a href="ai-shindan.html" class="block w-full text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-transform transform hover:scale-105" style="background-color: #E9A4B8;">
-                    AI 心と体の根本原因診断
-                </a>
-                <a href="progress-tracker.html" class="block w-full text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-transform transform hover:scale-105" style="background-color: #7A9B7A;">
-                    進捗管理
-                </a>
+    <div id="logged-in-view" class="hidden min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <!-- ヘッダー -->
+        <header class="bg-white shadow-sm">
+            <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-800">エンドゥ・ウェルネス</h1>
+                <div class="flex items-center space-x-4">
+                    <span id="user-email" class="text-sm text-gray-600"></span>
+                    <button id="logout-button" class="text-sm text-gray-500 hover:text-gray-700 px-3 py-1 rounded border hover:bg-gray-50">ログアウト</button>
+                </div>
             </div>
-            <button id="logout-button" class="mt-8 text-sm text-gray-500 hover:text-gray-700">ログアウト</button>
-        </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="max-w-6xl mx-auto px-4 py-12">
+            <!-- ヒーローセクション -->
+            <section class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-900 mb-4">
+                    心と体の真の健康を取り戻す
+                </h2>
+                <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+                    ヴィーガン・糖質制限とトラウマケアを組み合わせた、科学的根拠に基づく統合的健康管理プラットフォーム
+                </p>
+                
+                <!-- メイン診断CTA -->
+                <div class="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-8 text-white mb-12">
+                    <h3 class="text-2xl font-bold mb-4">まずは3分で現在の状態を知る</h3>
+                    <p class="text-lg mb-6 opacity-90">AI診断で、あなたの心と体の根本原因を分析します</p>
+                    <a href="ai-shindan.html" class="inline-block bg-white text-pink-600 font-bold py-4 px-8 rounded-xl hover:bg-gray-50 transition-all transform hover:scale-105 shadow-lg">
+                        🔍 無料AI診断を受ける
+                    </a>
+                </div>
+            </section>
+
+            <!-- 機能紹介セクション -->
+            <section class="mb-16">
+                <h3 class="text-3xl font-bold text-center text-gray-900 mb-12">3つの統合機能</h3>
+                <div class="grid md:grid-cols-3 gap-8">
+                    <!-- AI診断 -->
+                    <div class="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                        <div class="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+                            <span class="text-2xl">🔍</span>
+                        </div>
+                        <h4 class="text-xl font-bold text-gray-900 mb-3 text-center">AI根本原因診断</h4>
+                        <p class="text-gray-600 mb-4 text-center">心と体の不調の真の原因を科学的に分析</p>
+                        <ul class="text-sm text-gray-500 mb-6 space-y-2">
+                            <li>✓ 完全無料</li>
+                            <li>✓ 即座に結果表示</li>
+                            <li>✓ 個別改善プラン提案</li>
+                        </ul>
+                        <a href="ai-shindan.html" class="block w-full text-center bg-pink-500 text-white font-bold py-3 rounded-lg hover:bg-pink-600 transition-colors">
+                            診断を受ける
+                        </a>
+                    </div>
+
+                    <!-- トラウマノート -->
+                    <div class="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                        <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+                            <span class="text-2xl">💭</span>
+                        </div>
+                        <h4 class="text-xl font-bold text-gray-900 mb-3 text-center">AI対話トラウマノート</h4>
+                        <p class="text-gray-600 mb-4 text-center">AIとの対話でトラウマの根本解決へ導く</p>
+                        <ul class="text-sm text-gray-500 mb-6 space-y-2">
+                            <li>✓ 専門的AI対話</li>
+                            <li>✓ 安全な記録保存</li>
+                            <li>✓ 段階的解決サポート</li>
+                        </ul>
+                        <div class="space-y-2">
+                            <a href="trauma-note.html" class="block w-full text-center bg-blue-500 text-white font-bold py-3 rounded-lg hover:bg-blue-600 transition-colors">
+                                機能を確認
+                            </a>
+                            <p class="text-xs text-gray-400 text-center">※本格利用は有料プランで</p>
+                        </div>
+                    </div>
+
+                    <!-- 進捗管理 -->
+                    <div class="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+                            <span class="text-2xl">📊</span>
+                        </div>
+                        <h4 class="text-xl font-bold text-gray-900 mb-3 text-center">統合進捗管理</h4>
+                        <p class="text-gray-600 mb-4 text-center">食事・体調・気分の科学的分析</p>
+                        <ul class="text-sm text-gray-500 mb-6 space-y-2">
+                            <li>✓ ヴィーガン特化AI分析</li>
+                            <li>✓ 相関関係の可視化</li>
+                            <li>✓ 個別最適化アドバイス</li>
+                        </ul>
+                        <div class="space-y-2">
+                            <a href="progress-tracker.html" class="block w-full text-center bg-green-500 text-white font-bold py-3 rounded-lg hover:bg-green-600 transition-colors">
+                                管理を開始
+                            </a>
+                            <p class="text-xs text-gray-400 text-center">※高度分析は有料プランで</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ユーザーの声セクション（サンプル） -->
+            <section class="mb-16 bg-white rounded-2xl p-8">
+                <h3 class="text-3xl font-bold text-center text-gray-900 mb-12">利用者の声</h3>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-gray-50 rounded-xl p-6">
+                        <div class="flex items-center mb-4">
+                            <div class="w-12 h-12 bg-pink-200 rounded-full flex items-center justify-center mr-4">
+                                <span class="text-xl">👩</span>
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-gray-900">Aさん（40代女性）</h5>
+                                <p class="text-sm text-gray-500">会社員</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-700 italic">「トラウマノートで20年悩んでいた過去と向き合えました。食事改善と合わせて、心も体も軽くなった感覚があります。」</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-6">
+                        <div class="flex items-center mb-4">
+                            <div class="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center mr-4">
+                                <span class="text-xl">👨</span>
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-gray-900">Bさん（50代男性）</h5>
+                                <p class="text-sm text-gray-500">自営業</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-700 italic">「AI食事分析のおかげで、ヴィーガン生活が科学的に管理できるようになりました。体重も10kg減って健康そのものです。」</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- エンドゥ理論紹介 -->
+            <section class="mb-16">
+                <div class="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-8 text-white">
+                    <div class="max-w-4xl mx-auto text-center">
+                        <h3 class="text-3xl font-bold mb-4">なぜこの方法が効果的なのか</h3>
+                        <p class="text-lg mb-6 opacity-90">
+                            8万人のYouTube登録者に支持される「エンドゥ理論」
+                        </p>
+                        <div class="grid md:grid-cols-3 gap-6 mb-8">
+                            <div class="bg-white bg-opacity-20 rounded-xl p-4">
+                                <h4 class="font-bold mb-2">🌱 ヴィーガン原則</h4>
+                                <p class="text-sm opacity-90">動物性食品を避けることで、体の負担を根本から軽減</p>
+                            </div>
+                            <div class="bg-white bg-opacity-20 rounded-xl p-4">
+                                <h4 class="font-bold mb-2">⚡ 糖質制限</h4>
+                                <p class="text-sm opacity-90">血糖値安定化により、メンタルヘルスも同時に改善</p>
+                            </div>
+                            <div class="bg-white bg-opacity-20 rounded-xl p-4">
+                                <h4 class="font-bold mb-2">💭 トラウマケア</h4>
+                                <p class="text-sm opacity-90">心の根本原因に向き合い、真の健康を実現</p>
+                            </div>
+                        </div>
+                        <p class="text-sm opacity-75">
+                            ※ 詳しい理論解説は、エンドゥ・オンラインサロンでご覧いただけます
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- サロン・課金案内 -->
+            <section class="text-center">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-8 text-white">
+                    <h3 class="text-3xl font-bold mb-4">より深く学びたい方へ</h3>
+                    <p class="text-lg mb-6 opacity-90">
+                        エンドゥ・オンラインサロンで、理論の詳細と実践者コミュニティにアクセス
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                        <a href="https://lounge.dmm.com/detail/9373/index/" target="_blank" class="bg-white text-purple-600 font-bold py-3 px-6 rounded-xl hover:bg-gray-50 transition-all transform hover:scale-105">
+                            🌟 オンラインサロンを見る
+                        </a>
+                        <p class="text-sm opacity-75">月額888円 | 30名限定コミュニティ</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- フッター -->
+        <footer class="bg-gray-800 text-white py-8 mt-16">
+            <div class="max-w-6xl mx-auto px-4 text-center">
+                <p class="text-sm opacity-75">
+                    © 2024 エンドゥ・ウェルネス | 心と体の真の健康をサポート
+                </p>
+            </div>
+        </footer>
     </div>
 
     <!-- Firebase SDKs -->
