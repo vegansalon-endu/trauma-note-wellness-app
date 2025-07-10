@@ -506,18 +506,10 @@
                     submitBtn.textContent = '送信中...';
 
                     try {
-                        // Firestoreにフィードバックを保存
-                        await firebase.firestore().collection('feedback').add({
-                            userId: currentUser.uid,
-                            userEmail: currentUser.email,
-                            feedbackType: typeSelect.value,
-                            message: feedbackText,
-                            page: 'index',
-                            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                            userAgent: navigator.userAgent
-                        });
-
-                        // Slackに即座に通知を送信
+                        console.log('フィードバック送信開始:', { userId: currentUser.uid, feedbackType: typeSelect.value });
+                        
+                        // まずSlackに通知を送信（Firestoreは一時的にスキップ）
+                        console.log('Slack通知送信開始...');
                         const slackMessage = {
                             text: "新しいフィードバックが届きました！",
                             blocks: [
@@ -552,17 +544,20 @@
                             ]
                         };
 
-                        await fetch('https://hooks.slack.com/services/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', {
+                        const slackResponse = await fetch('https://hooks.slack.com/services/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', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(slackMessage)
                         });
+                        console.log('Slack通知送信完了:', slackResponse.status);
 
                         alert('フィードバックを送信しました。ありがとうございます！');
                         closeFeedback();
                     } catch (error) {
                         console.error('フィードバック送信エラー:', error);
-                        alert('フィードバックの送信に失敗しました。もう一度お試しください。');
+                        console.error('エラー詳細:', error.message);
+                        console.error('エラーコード:', error.code);
+                        alert(`フィードバックの送信に失敗しました: ${error.message}\nもう一度お試しください。`);
                         submitBtn.disabled = false;
                         submitBtn.textContent = '送信';
                     }
