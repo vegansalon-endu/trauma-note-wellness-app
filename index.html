@@ -519,26 +519,26 @@
 
                         // Slackに即座に通知を送信
                         const slackMessage = {
-                            text: \`🔔 新しいフィードバックが届きました！\`,
+                            text: `🔔 新しいフィードバックが届きました！`,
                             blocks: [
                                 {
                                     type: "section",
                                     fields: [
                                         {
                                             type: "mrkdwn",
-                                            text: \`*ページ:* ホーム（ランディング）\`
+                                            text: `*ページ:* ホーム（ランディング）`
                                         },
                                         {
                                             type: "mrkdwn",
-                                            text: \`*タイプ:* \${typeSelect.value === 'improvement' ? '改善要望' : typeSelect.value === 'bug' ? 'バグ報告' : 'その他'}\`
+                                            text: `*タイプ:* ${typeSelect.value === 'improvement' ? '改善要望' : typeSelect.value === 'bug' ? 'バグ報告' : 'その他'}`
                                         },
                                         {
                                             type: "mrkdwn",
-                                            text: \`*ユーザー:* \${currentUser.email}\`
+                                            text: `*ユーザー:* ${currentUser.email}`
                                         },
                                         {
                                             type: "mrkdwn",
-                                            text: \`*時刻:* \${new Date().toLocaleString('ja-JP')}\`
+                                            text: `*時刻:* ${new Date().toLocaleString('ja-JP')}`
                                         }
                                     ]
                                 },
@@ -546,7 +546,7 @@
                                     type: "section",
                                     text: {
                                         type: "mrkdwn",
-                                        text: \`*メッセージ:*\\n\${feedbackText}\`
+                                        text: `*メッセージ:*\n${feedbackText}`
                                     }
                                 }
                             ]
