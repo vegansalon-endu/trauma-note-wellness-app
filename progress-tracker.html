@@ -202,6 +202,7 @@
             </div>
             <div class="flex gap-4">
                 <a href="index.html" class="py-2 px-4 border rounded-full text-sm font-medium hover:bg-gray-100">ホーム</a>
+                <button id="feedback-button" class="py-2 px-4 bg-blue-500 text-white rounded-full text-sm font-medium hover:bg-blue-600">フィードバック</button>
                 <button id="logout-button" class="py-2 px-4 border rounded-full text-sm font-medium hover:bg-gray-100">ログアウト</button>
             </div>
         </header>
@@ -2991,6 +2992,130 @@ ${mealSummary}
                 displayTodayFastingStatus();
                 updateCorrelationChart(currentCorrelationPeriod, currentCorrelationTarget);
             };
+
+            // フィードバック機能
+            const setupFeedbackSystem = () => {
+                const feedbackButton = document.getElementById('feedback-button');
+                let feedbackModal = null;
+
+                feedbackButton.addEventListener('click', () => {
+                    if (feedbackModal) return;
+
+                    feedbackModal = document.createElement('div');
+                    feedbackModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4 z-50';
+                    feedbackModal.innerHTML = `
+                        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+                            <div class="p-6">
+                                <h2 class="text-xl font-bold mb-4">フィードバックを送信</h2>
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium mb-2">種類</label>
+                                    <select id="feedback-type" class="w-full p-2 border rounded-lg">
+                                        <option value="improvement">改善要望</option>
+                                        <option value="bug">バグ報告</option>
+                                        <option value="other">その他</option>
+                                    </select>
+                                </div>
+                                <div class="mb-6">
+                                    <label class="block text-sm font-medium mb-2">メッセージ</label>
+                                    <textarea id="feedback-text" placeholder="ご意見・ご要望をお聞かせください..." class="w-full h-32 p-3 border rounded-lg"></textarea>
+                                </div>
+                                <div class="flex gap-3 justify-end">
+                                    <button id="feedback-cancel" class="px-4 py-2 border rounded-lg hover:bg-gray-50">キャンセル</button>
+                                    <button id="feedback-submit" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">送信</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(feedbackModal);
+
+                    const submitBtn = feedbackModal.querySelector('#feedback-submit');
+                    const cancelBtn = feedbackModal.querySelector('#feedback-cancel');
+                    const textArea = feedbackModal.querySelector('#feedback-text');
+                    const typeSelect = feedbackModal.querySelector('#feedback-type');
+
+                    const closeFeedback = () => {
+                        document.body.removeChild(feedbackModal);
+                        feedbackModal = null;
+                    };
+
+                    cancelBtn.addEventListener('click', closeFeedback);
+
+                    submitBtn.addEventListener('click', async () => {
+                        const feedbackText = textArea.value.trim();
+                        if (!feedbackText) return;
+
+                        submitBtn.disabled = true;
+                        submitBtn.textContent = '送信中...';
+
+                        try {
+                            const currentUser = auth.currentUser;
+                            
+                            // Firestoreにフィードバックを保存
+                            await db.collection('feedback').add({
+                                userId: currentUser.uid,
+                                userEmail: currentUser.email,
+                                feedbackType: typeSelect.value,
+                                message: feedbackText,
+                                page: 'progress-tracker',
+                                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                                userAgent: navigator.userAgent
+                            });
+
+                            // Slackに即座に通知を送信
+                            const slackMessage = {
+                                text: \`🔔 新しいフィードバックが届きました！\`,
+                                blocks: [
+                                    {
+                                        type: "section",
+                                        fields: [
+                                            {
+                                                type: "mrkdwn",
+                                                text: \`*ページ:* 進捗管理\`
+                                            },
+                                            {
+                                                type: "mrkdwn",
+                                                text: \`*タイプ:* \${typeSelect.value === 'improvement' ? '改善要望' : typeSelect.value === 'bug' ? 'バグ報告' : 'その他'}\`
+                                            },
+                                            {
+                                                type: "mrkdwn",
+                                                text: \`*ユーザー:* \${currentUser.email}\`
+                                            },
+                                            {
+                                                type: "mrkdwn",
+                                                text: \`*時刻:* \${new Date().toLocaleString('ja-JP')}\`
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        type: "section",
+                                        text: {
+                                            type: "mrkdwn",
+                                            text: \`*メッセージ:*\\n\${feedbackText}\`
+                                        }
+                                    }
+                                ]
+                            };
+
+                            await fetch('https://hooks.slack.com/services/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', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(slackMessage)
+                            });
+
+                            alert('フィードバックを送信しました。ありがとうございます！');
+                            closeFeedback();
+                        } catch (error) {
+                            console.error('フィードバック送信エラー:', error);
+                            alert('フィードバックの送信に失敗しました。もう一度お試しください。');
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = '送信';
+                        }
+                    });
+                });
+            };
+
+            setupFeedbackSystem();
         });
     </script>
 </body>
