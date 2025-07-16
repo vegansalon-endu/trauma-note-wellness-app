@@ -26,7 +26,7 @@
     <main class="max-w-6xl mx-auto px-4 py-8">
         <div class="mb-8">
             <h2 class="text-3xl font-bold text-gray-900 mb-4">診断履歴</h2>
-            <p class="text-gray-600">これまでの診断結果を確認し、改善プランを比較できます</p>
+            <p class="text-gray-600">これまでの診断結果を確認し、健康改善の進捗を追跡できます</p>
         </div>
 
         <!-- ローディング表示 -->
@@ -37,7 +37,7 @@
 
         <!-- エラー表示 -->
         <div id="error-message" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p class="text-red-800"></p>
+            <p class="text-red-800" id="error-text"></p>
         </div>
 
         <!-- 診断履歴なしメッセージ -->
@@ -54,51 +54,26 @@
 
         <!-- 診断履歴リスト -->
         <div id="history-list" class="hidden">
-            <!-- フィルター・ソート -->
-            <div class="bg-white rounded-lg p-4 mb-6 flex flex-wrap items-center gap-4">
-                <div class="flex items-center space-x-2">
-                    <label class="text-sm font-medium text-gray-700">並び替え:</label>
-                    <select id="sort-select" class="border border-gray-300 rounded-md px-3 py-1 text-sm">
-                        <option value="newest">新しい順</option>
-                        <option value="oldest">古い順</option>
-                    </select>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <label class="text-sm font-medium text-gray-700">比較モード:</label>
-                    <button id="compare-toggle" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm hover:bg-gray-300 transition-colors">
-                        比較モードON
-                    </button>
-                </div>
-                <div id="compare-actions" class="hidden flex items-center space-x-2">
-                    <button id="compare-selected" class="bg-purple-600 text-white px-4 py-2 rounded-md text-sm hover:bg-purple-700 transition-colors">
-                        選択した診断結果を比較
-                    </button>
-                    <button id="clear-selection" class="bg-gray-500 text-white px-4 py-2 rounded-md text-sm hover:bg-gray-600 transition-colors">
-                        選択をクリア
-                    </button>
-                </div>
-            </div>
-
             <!-- 診断結果カード一覧 -->
             <div id="diagnosis-cards" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- カードはJavaScriptで動的生成 -->
             </div>
         </div>
 
-        <!-- 比較モーダル -->
-        <div id="compare-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-6xl w-full mx-4 max-h-screen overflow-y-auto">
+        <!-- 詳細モーダル -->
+        <div id="detail-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-screen overflow-y-auto">
                 <div class="p-6">
                     <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-2xl font-bold text-gray-900">診断結果比較</h3>
-                        <button id="close-compare" class="text-gray-500 hover:text-gray-700">
+                        <h3 class="text-2xl font-bold text-gray-900">診断結果詳細</h3>
+                        <button id="close-detail" class="text-gray-500 hover:text-gray-700">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
                         </button>
                     </div>
-                    <div id="compare-content" class="grid gap-6">
-                        <!-- 比較コンテンツはJavaScriptで動的生成 -->
+                    <div id="detail-content">
+                        <!-- 詳細コンテンツはJavaScriptで動的生成 -->
                     </div>
                 </div>
             </div>
@@ -123,19 +98,16 @@
 
         let currentUser = null;
         let allDiagnoses = [];
-        let selectedDiagnoses = [];
-        let compareMode = false;
 
         // DOM要素
         const loadingEl = document.getElementById('loading');
         const errorEl = document.getElementById('error-message');
+        const errorTextEl = document.getElementById('error-text');
         const noHistoryEl = document.getElementById('no-history');
         const historyListEl = document.getElementById('history-list');
         const diagnosisCardsEl = document.getElementById('diagnosis-cards');
-        const sortSelect = document.getElementById('sort-select');
-        const compareToggle = document.getElementById('compare-toggle');
-        const compareActions = document.getElementById('compare-actions');
-        const compareModal = document.getElementById('compare-modal');
+        const detailModal = document.getElementById('detail-modal');
+        const detailContent = document.getElementById('detail-content');
         const userEmailEl = document.getElementById('user-email');
         const logoutButton = document.getElementById('logout-button');
 
@@ -189,43 +161,22 @@
 
         // エラー表示
         function showError(message) {
-            errorEl.querySelector('p').textContent = message;
+            errorTextEl.textContent = message;
             errorEl.classList.remove('hidden');
         }
 
         // 診断結果カードのレンダリング
         function renderDiagnosisCards() {
-            const sortedDiagnoses = [...allDiagnoses].sort((a, b) => {
-                const sortOrder = sortSelect.value;
-                if (sortOrder === 'newest') {
-                    return b.createdAt?.toDate() - a.createdAt?.toDate();
-                } else {
-                    return a.createdAt?.toDate() - b.createdAt?.toDate();
-                }
-            });
-
-            diagnosisCardsEl.innerHTML = sortedDiagnoses.map(diagnosis => {
-                const date = diagnosis.createdAt?.toDate();
-                const dateStr = date ? date.toLocaleDateString('ja-JP', {
+            diagnosisCardsEl.innerHTML = allDiagnoses.map(diagnosis => {
+                const date = diagnosis.createdAt?.toDate?.() || new Date();
+                const dateStr = date.toLocaleDateString('ja-JP', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric'
-                }) : '日付不明';
-
-                const isSelected = selectedDiagnoses.includes(diagnosis.id);
+                });
                 
                 return `
-                    <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow ${isSelected ? 'ring-2 ring-purple-500' : ''}" data-diagnosis-id="${diagnosis.id}">
-                        ${compareMode ? `
-                            <div class="p-4 border-b">
-                                <label class="flex items-center space-x-2 cursor-pointer">
-                                    <input type="checkbox" ${isSelected ? 'checked' : ''} 
-                                           onchange="toggleSelection('${diagnosis.id}')"
-                                           class="w-4 h-4 text-purple-600 border-gray-300 rounded">
-                                    <span class="text-sm font-medium text-gray-700">比較対象に選択</span>
-                                </label>
-                            </div>
-                        ` : ''}
+                    <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onclick="viewDetails('${diagnosis.id}')">
                         <div class="p-6">
                             <div class="flex justify-between items-start mb-4">
                                 <h3 class="text-lg font-bold text-gray-900">${diagnosis.title || '診断結果'}</h3>
@@ -236,10 +187,10 @@
                                 <div class="mb-4 p-3 bg-gray-50 rounded-lg">
                                     <h4 class="text-sm font-semibold text-gray-700 mb-2">基本情報</h4>
                                     <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                                        <div>年齢: ${diagnosis.basicInfo.age}歳</div>
-                                        <div>性別: ${diagnosis.basicInfo.gender}</div>
-                                        <div>BMI: ${diagnosis.basicInfo.bmi?.toFixed(1) || 'N/A'}</div>
-                                        <div>目標体重: ${diagnosis.basicInfo.targetWeight}kg</div>
+                                        <div>年齢: ${diagnosis.basicInfo.age || 'N/A'}歳</div>
+                                        <div>性別: ${diagnosis.basicInfo.gender || 'N/A'}</div>
+                                        <div>BMI: ${diagnosis.basicInfo.bmi ? diagnosis.basicInfo.bmi.toFixed(1) : 'N/A'}</div>
+                                        <div>目標体重: ${diagnosis.basicInfo.targetWeight || 'N/A'}kg</div>
                                     </div>
                                 </div>
                             ` : ''}
@@ -248,20 +199,20 @@
                                 <div class="mb-4 p-3 bg-blue-50 rounded-lg">
                                     <h4 class="text-sm font-semibold text-gray-700 mb-2">スコア</h4>
                                     <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                                        <div>身体症状: ${diagnosis.scores.physicalSymptoms}/25</div>
-                                        <div>精神症状: ${diagnosis.scores.mentalSymptoms}/30</div>
-                                        <div>食生活: ${diagnosis.scores.dietaryHabits}/65</div>
-                                        <div>総合: ${diagnosis.scores.total}/120</div>
+                                        <div>身体症状: ${diagnosis.scores.physicalSymptoms || 0}/25</div>
+                                        <div>精神症状: ${diagnosis.scores.mentalSymptoms || 0}/30</div>
+                                        <div>食生活: ${diagnosis.scores.dietaryHabits || 0}/65</div>
+                                        <div class="font-semibold">総合: ${diagnosis.scores.total || 0}/120</div>
                                     </div>
                                 </div>
                             ` : ''}
 
                             <div class="flex space-x-2">
-                                <button onclick="viewDetails('${diagnosis.id}')" 
+                                <button onclick="event.stopPropagation(); viewDetails('${diagnosis.id}')" 
                                         class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg text-sm hover:bg-blue-700 transition-colors">
                                     詳細を見る
                                 </button>
-                                <button onclick="deleteDiagnosis('${diagnosis.id}')" 
+                                <button onclick="event.stopPropagation(); deleteDiagnosis('${diagnosis.id}')" 
                                         class="bg-red-500 text-white py-2 px-4 rounded-lg text-sm hover:bg-red-600 transition-colors">
                                     削除
                                 </button>
@@ -272,170 +223,72 @@
             }).join('');
         }
 
-        // ソート変更
-        sortSelect.addEventListener('change', renderDiagnosisCards);
-
-        // 比較モードの切り替え
-        compareToggle.addEventListener('click', () => {
-            compareMode = !compareMode;
-            selectedDiagnoses = [];
-            compareToggle.textContent = compareMode ? '比較モードOFF' : '比較モードON';
-            compareToggle.className = compareMode 
-                ? 'bg-purple-600 text-white px-4 py-2 rounded-md text-sm hover:bg-purple-700 transition-colors'
-                : 'bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm hover:bg-gray-300 transition-colors';
-            compareActions.classList.toggle('hidden', !compareMode);
-            renderDiagnosisCards();
-        });
-
-        // 選択の切り替え
-        function toggleSelection(diagnosisId) {
-            if (selectedDiagnoses.includes(diagnosisId)) {
-                selectedDiagnoses = selectedDiagnoses.filter(id => id !== diagnosisId);
-            } else {
-                selectedDiagnoses.push(diagnosisId);
-            }
-            renderDiagnosisCards();
-        }
-
-        // 選択をクリア
-        document.getElementById('clear-selection').addEventListener('click', () => {
-            selectedDiagnoses = [];
-            renderDiagnosisCards();
-        });
-
-        // 選択した診断結果を比較
-        document.getElementById('compare-selected').addEventListener('click', () => {
-            if (selectedDiagnoses.length < 2) {
-                alert('比較するには2つ以上の診断結果を選択してください。');
-                return;
-            }
-            showCompareModal();
-        });
-
-        // 比較モーダルの表示
-        function showCompareModal() {
-            const selectedData = allDiagnoses.filter(d => selectedDiagnoses.includes(d.id));
-            const compareContent = document.getElementById('compare-content');
-            
-            compareContent.innerHTML = `
-                <div class="grid gap-6" style="grid-template-columns: repeat(${selectedData.length}, 1fr);">
-                    ${selectedData.map(diagnosis => {
-                        const date = diagnosis.createdAt?.toDate()?.toLocaleDateString('ja-JP') || '日付不明';
-                        return `
-                            <div class="border border-gray-200 rounded-lg p-4">
-                                <h4 class="font-bold text-lg mb-2">${diagnosis.title || '診断結果'}</h4>
-                                <p class="text-sm text-gray-500 mb-4">${date}</p>
-                                
-                                ${diagnosis.basicInfo ? `
-                                    <div class="mb-4">
-                                        <h5 class="font-semibold text-sm mb-2">基本情報</h5>
-                                        <div class="text-xs space-y-1">
-                                            <div>年齢: ${diagnosis.basicInfo.age}歳</div>
-                                            <div>BMI: ${diagnosis.basicInfo.bmi?.toFixed(1) || 'N/A'}</div>
-                                            <div>目標体重: ${diagnosis.basicInfo.targetWeight}kg</div>
-                                        </div>
-                                    </div>
-                                ` : ''}
-
-                                ${diagnosis.scores ? `
-                                    <div class="mb-4">
-                                        <h5 class="font-semibold text-sm mb-2">スコア</h5>
-                                        <div class="text-xs space-y-1">
-                                            <div>身体症状: ${diagnosis.scores.physicalSymptoms}/25</div>
-                                            <div>精神症状: ${diagnosis.scores.mentalSymptoms}/30</div>
-                                            <div>食生活: ${diagnosis.scores.dietaryHabits}/65</div>
-                                            <div class="font-semibold">総合: ${diagnosis.scores.total}/120</div>
-                                        </div>
-                                    </div>
-                                ` : ''}
-
-                                <div class="text-xs">
-                                    <h5 class="font-semibold mb-2">レポート概要</h5>
-                                    <div class="max-h-32 overflow-y-auto text-gray-600">
-                                        ${diagnosis.report ? diagnosis.report.substring(0, 200) + '...' : 'レポートなし'}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            `;
-            
-            compareModal.classList.remove('hidden');
-        }
-
-        // 比較モーダルを閉じる
-        document.getElementById('close-compare').addEventListener('click', () => {
-            compareModal.classList.add('hidden');
-        });
-
         // 詳細表示
         function viewDetails(diagnosisId) {
             const diagnosis = allDiagnoses.find(d => d.id === diagnosisId);
             if (!diagnosis) return;
             
-            const detailWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
-            const date = diagnosis.createdAt?.toDate()?.toLocaleDateString('ja-JP') || '日付不明';
+            const date = diagnosis.createdAt?.toDate?.() || new Date();
+            const dateStr = date.toLocaleDateString('ja-JP', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
             
-            detailWindow.document.write(`
-                <!DOCTYPE html>
-                <html lang="ja">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>${diagnosis.title || '診断結果'} - エンドゥ・ウェルネス</title>
-                    <script src="https://cdn.tailwindcss.com"></script>
-                </head>
-                <body class="bg-gray-50 p-6">
-                    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-8">
-                        <h1 class="text-2xl font-bold mb-2">${diagnosis.title || '診断結果'}</h1>
-                        <p class="text-gray-500 mb-6">${date}</p>
-                        
-                        ${diagnosis.basicInfo ? `
-                            <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-                                <h2 class="text-lg font-semibold mb-3">基本情報</h2>
-                                <div class="grid md:grid-cols-2 gap-4">
-                                    <div>年齢: ${diagnosis.basicInfo.age || 'N/A'}歳</div>
-                                    <div>性別: ${diagnosis.basicInfo.gender || 'N/A'}</div>
-                                    <div>身長: ${diagnosis.basicInfo.height || 'N/A'}cm</div>
-                                    <div>体重: ${diagnosis.basicInfo.weight || 'N/A'}kg</div>
-                                    <div>目標体重: ${diagnosis.basicInfo.targetWeight || 'N/A'}kg</div>
-                                    <div>BMI: ${diagnosis.basicInfo.bmi ? diagnosis.basicInfo.bmi.toFixed(1) : 'N/A'}</div>
-                                </div>
-                            </div>
-                        ` : ''}
-
-                        ${diagnosis.scores ? `
-                            <div class="mb-6 p-4 bg-blue-50 rounded-lg">
-                                <h2 class="text-lg font-semibold mb-3">評価スコア</h2>
-                                <div class="grid md:grid-cols-2 gap-4">
-                                    <div>身体症状: ${diagnosis.scores.physicalSymptom || 0}/25</div>
-                                    <div>精神症状: ${diagnosis.scores.mentalSymptom || 0}/30</div>
-                                    <div>食生活: ${(diagnosis.scores.animalProduct || 0) + (diagnosis.scores.sugarIntake || 0) + (diagnosis.scores.badHabits || 0)}/65</div>
-                                    <div class="font-semibold text-lg">総合スコア: ${((diagnosis.scores.physicalSymptom || 0) + (diagnosis.scores.mentalSymptom || 0) + (diagnosis.scores.animalProduct || 0) + (diagnosis.scores.sugarIntake || 0) + (diagnosis.scores.badHabits || 0))}/120</div>
-                                </div>
-                            </div>
-                        ` : ''}
-
-                        <div class="mb-6">
-                            <h2 class="text-lg font-semibold mb-3">診断レポート</h2>
-                            <div class="prose max-w-none">
-                                ${diagnosis.report && diagnosis.report.summary ? diagnosis.report.summary.replace(/\\n/g, '<br>') : 'レポートがありません'}
-                            </div>
+            detailContent.innerHTML = `
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold mb-2">${diagnosis.title || '診断結果'}</h2>
+                    <p class="text-gray-500">${dateStr}</p>
+                </div>
+                
+                ${diagnosis.basicInfo ? `
+                    <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-3">基本情報</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>年齢: ${diagnosis.basicInfo.age || 'N/A'}歳</div>
+                            <div>性別: ${diagnosis.basicInfo.gender || 'N/A'}</div>
+                            <div>身長: ${diagnosis.basicInfo.height || 'N/A'}cm</div>
+                            <div>体重: ${diagnosis.basicInfo.weight || 'N/A'}kg</div>
+                            <div>目標体重: ${diagnosis.basicInfo.targetWeight || 'N/A'}kg</div>
+                            <div>BMI: ${diagnosis.basicInfo.bmi ? diagnosis.basicInfo.bmi.toFixed(1) : 'N/A'}</div>
                         </div>
-                        
-                        <button onclick="window.print()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors mr-4">
-                            印刷
-                        </button>
-                        <button onclick="window.close()" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors">
-                            閉じる
-                        </button>
                     </div>
-                </body>
-                </html>
-            `);
-            detailWindow.document.close();
+                ` : ''}
+
+                ${diagnosis.scores ? `
+                    <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-3">評価スコア</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>身体症状: ${diagnosis.scores.physicalSymptoms || 0}/25</div>
+                            <div>精神症状: ${diagnosis.scores.mentalSymptoms || 0}/30</div>
+                            <div>食生活: ${diagnosis.scores.dietaryHabits || 0}/65</div>
+                            <div class="font-semibold text-lg">総合スコア: ${diagnosis.scores.total || 0}/120</div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold mb-3">診断レポート</h3>
+                    <div class="prose max-w-none bg-white p-4 rounded-lg border">
+                        ${diagnosis.report ? diagnosis.report.replace(/\n/g, '<br>') : 'レポートがありません'}
+                    </div>
+                </div>
+            `;
+            
+            detailModal.classList.remove('hidden');
         }
+
+        // 詳細モーダルを閉じる
+        document.getElementById('close-detail').addEventListener('click', () => {
+            detailModal.classList.add('hidden');
+        });
+
+        // モーダル外クリックで閉じる
+        detailModal.addEventListener('click', (e) => {
+            if (e.target === detailModal) {
+                detailModal.classList.add('hidden');
+            }
+        });
 
         // 診断結果の削除
         async function deleteDiagnosis(diagnosisId) {
@@ -451,7 +304,6 @@
                     .delete();
                 
                 allDiagnoses = allDiagnoses.filter(d => d.id !== diagnosisId);
-                selectedDiagnoses = selectedDiagnoses.filter(id => id !== diagnosisId);
                 
                 if (allDiagnoses.length === 0) {
                     historyListEl.classList.add('hidden');
@@ -459,11 +311,23 @@
                 } else {
                     renderDiagnosisCards();
                 }
+                
+                // モーダルが開いている場合は閉じる
+                if (!detailModal.classList.contains('hidden')) {
+                    detailModal.classList.add('hidden');
+                }
             } catch (error) {
                 console.error('削除エラー:', error);
                 alert('削除に失敗しました。もう一度お試しください。');
             }
         }
+
+        // ESCキーでモーダルを閉じる
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !detailModal.classList.contains('hidden')) {
+                detailModal.classList.add('hidden');
+            }
+        });
     </script>
 </body>
 </html>
