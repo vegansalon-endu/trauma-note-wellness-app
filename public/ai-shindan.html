@@ -786,7 +786,7 @@
                         body: JSON.stringify({
                             contents: [{ parts: [{ text: prompt }] }],
                             generationConfig: {
-                                maxOutputTokens: 1500,  // トークン数制限でコスト削減
+                                maxOutputTokens: 4000,  // トークン数制限を大幅に増加
                                 temperature: 0.7
                             },
                             safetySettings: [
@@ -838,10 +838,17 @@
                     const candidate = result.candidates[0];
                     console.log('Candidate structure:', candidate);
                     
-                    // セーフティフィルターやコンテンツフィルタリングをチェック
+                    // finishReasonをチェック
                     if (candidate.finishReason && candidate.finishReason !== 'STOP') {
-                        console.error('Content filtered or blocked:', candidate.finishReason);
-                        throw new Error('コンテンツが安全性フィルターによりブロックされました。入力内容を見直してお試しください。');
+                        console.error('Generation stopped due to:', candidate.finishReason);
+                        
+                        if (candidate.finishReason === 'MAX_TOKENS') {
+                            // MAX_TOKENSの場合、部分的な内容でも処理を続行
+                            console.warn('Response truncated due to max tokens limit');
+                        } else {
+                            // その他の理由（セーフティフィルター等）の場合はエラー
+                            throw new Error('コンテンツが安全性フィルターによりブロックされました。入力内容を見直してお試しください。');
+                        }
                     }
                     
                     if (!candidate.content || !candidate.content.parts || !candidate.content.parts[0] || !candidate.content.parts[0].text) {
