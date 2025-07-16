@@ -810,12 +810,22 @@
 
                     const result = await response.json();
                     
+                    console.log('Gemini API response:', result);
+                    
                     if (!result.candidates || !result.candidates[0] || !result.candidates[0].content) {
                         console.error('Unexpected Gemini API response:', result);
                         throw new Error('AI APIからの応答が予期しない形式です。しばらく時間をおいてからお試しください。');
                     }
                     
-                    const content = result.candidates[0].content.parts[0].text;
+                    const candidate = result.candidates[0];
+                    console.log('Candidate content:', candidate.content);
+                    
+                    if (!candidate.content.parts || !candidate.content.parts[0] || !candidate.content.parts[0].text) {
+                        console.error('Invalid content structure:', candidate.content);
+                        throw new Error('AI応答の内容が予期しない形式です。もう一度お試しください。');
+                    }
+                    
+                    const content = candidate.content.parts[0].text;
                     
                     // JSONレスポンスをパース
                     const jsonStart = content.indexOf('{');
