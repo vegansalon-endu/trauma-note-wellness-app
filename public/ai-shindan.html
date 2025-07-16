@@ -786,7 +786,7 @@
                         body: JSON.stringify({
                             contents: [{ parts: [{ text: prompt }] }],
                             generationConfig: {
-                                maxOutputTokens: 4000,  // トークン数制限を大幅に増加
+                                maxOutputTokens: 8000,  // トークン数制限をさらに大幅に増加
                                 temperature: 0.7
                             },
                             safetySettings: [
@@ -867,7 +867,7 @@
                         throw new Error('AI応答にJSON形式のデータが含まれていません。もう一度お試しください。');
                     }
                     
-                    const jsonContent = content.substring(jsonStart, jsonEnd);
+                    let jsonContent = content.substring(jsonStart, jsonEnd);
                     
                     try {
                         const result = JSON.parse(jsonContent);
@@ -881,6 +881,30 @@
                     } catch (parseError) {
                         console.error('JSON parse error:', parseError);
                         console.error('Content to parse:', jsonContent);
+                        
+                        // MAX_TOKENSで切断された場合、JSONを修復試行
+                        if (candidate.finishReason === 'MAX_TOKENS') {
+                            console.log('Attempting to repair truncated JSON...');
+                            
+                            // 不完全なJSONを修復
+                            jsonContent = fixTruncatedJSON(jsonContent);
+                            
+                            try {
+                                const result = JSON.parse(jsonContent);
+                                console.log('Successfully repaired truncated JSON');
+                                
+                                // 使用量をカウント
+                                const newUsage = todayUsage + 1;
+                                localStorage.setItem(usageKey, newUsage.toString());
+                                console.log(`今日のGemini API使用回数: ${newUsage}`);
+                                
+                                return result;
+                            } catch (repairError) {
+                                console.error('Failed to repair JSON:', repairError);
+                                throw new Error('AI応答が途中で切断されました。もう一度お試しください。');
+                            }
+                        }
+                        
                         throw new Error('AI応答の解析に失敗しました。もう一度お試しください。');
                     }
                 } catch (error) {
@@ -897,6 +921,43 @@
                     }
                     
                     throw new Error('AI報告書の生成に失敗しました。お手数ですが、もう一度お試しください。');
+                }
+            };
+
+            // 切断されたJSONを修復する関数
+            const fixTruncatedJSON = (jsonStr) => {
+                try {
+                    // 基本的な文字列と配列の修復
+                    let fixed = jsonStr;
+                    
+                    // 開かれた文字列を閉じる
+                    const openQuotes = (fixed.match(/"/g) || []).length;
+                    if (openQuotes % 2 === 1) {
+                        fixed += '"';
+                    }
+                    
+                    // 開かれた配列を閉じる
+                    const openBrackets = (fixed.match(/\[/g) || []).length;
+                    const closeBrackets = (fixed.match(/\]/g) || []).length;
+                    for (let i = 0; i < openBrackets - closeBrackets; i++) {
+                        fixed += ']';
+                    }
+                    
+                    // 開かれたオブジェクトを閉じる
+                    const openBraces = (fixed.match(/\{/g) || []).length;
+                    const closeBraces = (fixed.match(/\}/g) || []).length;
+                    for (let i = 0; i < openBraces - closeBraces; i++) {
+                        fixed += '}';
+                    }
+                    
+                    // 最後のカンマを削除
+                    fixed = fixed.replace(/,(\s*[\}\]])/, '$1');
+                    
+                    console.log('Repaired JSON:', fixed);
+                    return fixed;
+                } catch (error) {
+                    console.error('JSON repair failed:', error);
+                    return jsonStr;
                 }
             };
             
