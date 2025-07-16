@@ -168,6 +168,22 @@
                 </div>
             </section>
 
+            <!-- 診断結果閲覧セクション（ログイン時のみ表示） -->
+            <section id="diagnosis-history-section" class="mb-16 hidden">
+                <div class="bg-white rounded-xl p-8 shadow-lg">
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+                            <span class="text-2xl">📋</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-4">過去の診断結果</h3>
+                        <p class="text-gray-600 mb-6">これまでの診断結果を確認し、改善プランを比較できます</p>
+                        <button onclick="navigateToFeature('diagnosis-history.html')" class="bg-purple-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-purple-600 transition-colors">
+                            診断履歴を確認する
+                        </button>
+                    </div>
+                </div>
+            </section>
+
             <!-- ユーザーの声セクション（サンプル） -->
             <section class="mb-16 bg-white rounded-2xl p-8">
                 <h3 class="text-3xl font-bold text-center text-gray-900 mb-12">利用者の声</h3>
@@ -320,6 +336,12 @@
                     userInfo.classList.remove('hidden');
                     userEmailDisplay.textContent = user.email;
                     
+                    // 診断履歴セクションを表示
+                    const diagnosisHistorySection = document.getElementById('diagnosis-history-section');
+                    if (diagnosisHistorySection) {
+                        diagnosisHistorySection.classList.remove('hidden');
+                    }
+                    
                     // ログイン完了後のリダイレクト処理
                     if (pendingNavigation) {
                         window.location.href = pendingNavigation;
@@ -328,6 +350,12 @@
                 } else {
                     // 未ログイン表示
                     userInfo.classList.add('hidden');
+                    
+                    // 診断履歴セクションを非表示
+                    const diagnosisHistorySection = document.getElementById('diagnosis-history-section');
+                    if (diagnosisHistorySection) {
+                        diagnosisHistorySection.classList.add('hidden');
+                    }
                     authButtons.classList.remove('hidden');
                 }
             });
