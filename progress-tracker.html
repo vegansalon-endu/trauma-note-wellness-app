@@ -331,38 +331,38 @@
                                 </div>
                                 <div id="ai-comment-content" class="text-sm">
                                     <div class="bg-white bg-opacity-60 rounded p-3">
+                                        <!-- PC版：テーブルレイアウト -->
                                         <div class="hidden md:block">
-                                            <!-- PC版：横並びレイアウト -->
-                                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
-                                                <div class="bg-gradient-to-r from-green-50 to-blue-50 p-2 rounded">
-                                                    <div class="font-medium text-green-700 mb-1">🎯 総合評価</div>
-                                                    <div id="overall-comment-desktop" class="text-gray-800"></div>
-                                                </div>
-                                                <div class="bg-gradient-to-r from-orange-50 to-yellow-50 p-2 rounded">
-                                                    <div class="font-medium text-orange-700 mb-1">⏰ タイミング</div>
-                                                    <div id="timing-comment-desktop" class="text-gray-800"></div>
-                                                </div>
-                                                <div class="bg-gradient-to-r from-purple-50 to-pink-50 p-2 rounded">
-                                                    <div class="font-medium text-purple-700 mb-1">💡 アドバイス</div>
-                                                    <div id="advice-comment-desktop" class="text-gray-800"></div>
-                                                </div>
-                                            </div>
+                                            <table class="w-full text-xs">
+                                                <tr>
+                                                    <td class="p-2 bg-green-50 rounded-l border-r border-gray-200">
+                                                        <div class="font-medium text-green-700 mb-1">🎯 総合評価</div>
+                                                        <div id="overall-comment" class="text-gray-800"></div>
+                                                    </td>
+                                                    <td class="p-2 bg-orange-50 border-r border-gray-200">
+                                                        <div class="font-medium text-orange-700 mb-1">⏰ タイミング</div>
+                                                        <div id="timing-comment" class="text-gray-800"></div>
+                                                    </td>
+                                                    <td class="p-2 bg-purple-50 rounded-r">
+                                                        <div class="font-medium text-purple-700 mb-1">💡 アドバイス</div>
+                                                        <div id="advice-comment" class="text-gray-800"></div>
+                                                    </td>
+                                                </tr>
+                                            </table>
                                         </div>
-                                        <div class="md:hidden">
-                                            <!-- モバイル版：縦レイアウト -->
-                                            <div class="space-y-3">
-                                                <div>
-                                                    <span class="text-xs text-gray-500">🎯 総合評価：</span>
-                                                    <span id="overall-comment" class="font-medium text-gray-800"></span>
-                                                </div>
-                                                <div>
-                                                    <span class="text-xs text-gray-500">⏰ タイミング：</span>
-                                                    <span id="timing-comment" class="text-gray-700"></span>
-                                                </div>
-                                                <div>
-                                                    <span class="text-xs text-gray-500">💡 アドバイス：</span>
-                                                    <span id="advice-comment" class="text-blue-700"></span>
-                                                </div>
+                                        <!-- モバイル版：縦レイアウト -->
+                                        <div class="md:hidden space-y-3">
+                                            <div>
+                                                <span class="text-xs text-gray-500">🎯 総合評価：</span>
+                                                <span id="overall-comment-mobile" class="font-medium text-gray-800"></span>
+                                            </div>
+                                            <div>
+                                                <span class="text-xs text-gray-500">⏰ タイミング：</span>
+                                                <span id="timing-comment-mobile" class="text-gray-700"></span>
+                                            </div>
+                                            <div>
+                                                <span class="text-xs text-gray-500">💡 アドバイス：</span>
+                                                <span id="advice-comment-mobile" class="text-blue-700"></span>
                                             </div>
                                         </div>
                                     </div>
@@ -2034,14 +2034,15 @@ ${mealSummary}
                 
                 const summary = todayRecord.daily_food_summary;
                 
+                // PC版の要素に設定
                 document.getElementById('overall-comment').textContent = summary.overall_comment || '';
                 document.getElementById('timing-comment').textContent = summary.timing_comment || '';
                 document.getElementById('advice-comment').textContent = summary.advice || '';
                 
-                // PC版の要素にも同じ内容を設定
-                document.getElementById('overall-comment-desktop').textContent = summary.overall_comment || '';
-                document.getElementById('timing-comment-desktop').textContent = summary.timing_comment || '';
-                document.getElementById('advice-comment-desktop').textContent = summary.advice || '';
+                // モバイル版の要素にも同じ内容を設定
+                document.getElementById('overall-comment-mobile').textContent = summary.overall_comment || '';
+                document.getElementById('timing-comment-mobile').textContent = summary.timing_comment || '';
+                document.getElementById('advice-comment-mobile').textContent = summary.advice || '';
                 
                 document.getElementById('ai-food-comment').classList.remove('hidden');
             };
