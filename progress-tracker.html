@@ -74,9 +74,11 @@
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 1px;
+            gap: 2px;
             background-color: #e5e7eb;
             border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
         }
         .calendar-day {
             background: rgba(255, 255, 255, 0.8);
@@ -86,8 +88,8 @@
             position: relative;
             cursor: pointer;
             transition: all 0.3s ease;
-            border-radius: 6px;
-            margin: 2px;
+            border: none;
+            margin: 0;
         }
         .calendar-day:hover {
             background: rgba(255, 255, 255, 0.95);
@@ -975,6 +977,9 @@
                     
                     // 今日の食事一覧を更新
                     displayTodayMeals();
+                    
+                    // 今日のファスティング状況を更新
+                    displayTodayFastingStatus();
                     
                     // AI評価コメントを表示
                     displayAIFoodComment();
@@ -1919,6 +1924,9 @@ ${mealSummary}
                     closeMealModalFunction();
                     await loadRecords(); // 記録を再読み込み
                     
+                    // 今日のファスティング状況を更新
+                    displayTodayFastingStatus();
+                    
                     // 食事エントリが追加されたのでAI評価を実行
                     console.log('食事追加後のAI評価を呼び出します:', dateKey);
                     try {
@@ -2216,12 +2224,18 @@ ${mealSummary}
                 const todayKey = formatDateKey(today);
                 const yesterdayKey = formatDateKey(yesterday);
                 
+                console.log('displayTodayFastingStatus - todayKey:', todayKey);
+                console.log('displayTodayFastingStatus - records:', records);
+                
                 const todayRecord = records[todayKey];
                 const yesterdayRecord = records[yesterdayKey];
+                
+                console.log('displayTodayFastingStatus - todayRecord:', todayRecord);
                 
                 const statusDiv = document.getElementById('today-fasting-status');
                 
                 if (!todayRecord || !todayRecord.meal_entries || todayRecord.meal_entries.length === 0) {
+                    console.log('displayTodayFastingStatus - 食事記録なし');
                     statusDiv.innerHTML = '<p>今日の食事がまだ記録されていません</p>';
                     return;
                 }
@@ -2985,9 +2999,9 @@ ${mealSummary}
             };
             
             // 初期読み込み時に食事間隔分析と相関分析を追加
-            const originalUpdateCharts = updateCharts;
-            updateCharts = () => {
-                originalUpdateCharts();
+            const updateCharts = () => {
+                if (window.updateWeightChart) window.updateWeightChart();
+                if (window.updateNutritionChart) window.updateNutritionChart();
                 updateIntervalChart(currentIntervalPeriod);
                 displayTodayFastingStatus();
                 updateCorrelationChart(currentCorrelationPeriod, currentCorrelationTarget);
