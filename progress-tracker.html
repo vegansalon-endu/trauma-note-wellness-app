@@ -72,13 +72,14 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            display: grid !important;
+            grid-template-columns: repeat(7, 1fr) !important;
             gap: 2px;
             background-color: #e5e7eb;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             overflow: hidden;
+            width: 100%;
         }
         .calendar-day {
             background: rgba(255, 255, 255, 0.8);
@@ -89,7 +90,9 @@
             cursor: pointer;
             transition: all 0.3s ease;
             border: none;
-            margin: 0;
+            margin: 0 !important;
+            box-sizing: border-box;
+            display: block;
         }
         .calendar-day:hover {
             background: rgba(255, 255, 255, 0.95);
