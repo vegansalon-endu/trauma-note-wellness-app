@@ -199,10 +199,10 @@
                                 <div class="mb-4 p-3 bg-blue-50 rounded-lg">
                                     <h4 class="text-sm font-semibold text-gray-700 mb-2">スコア</h4>
                                     <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                                        <div>身体症状: ${diagnosis.scores.physicalSymptoms || 0}/25</div>
-                                        <div>精神症状: ${diagnosis.scores.mentalSymptoms || 0}/30</div>
-                                        <div>食生活: ${diagnosis.scores.dietaryHabits || 0}/65</div>
-                                        <div class="font-semibold">総合: ${diagnosis.scores.total || 0}/120</div>
+                                        <div>身体症状: ${diagnosis.scores.physicalSymptom || 0}/25</div>
+                                        <div>精神症状: ${diagnosis.scores.mentalSymptom || 0}/30</div>
+                                        <div>食生活: ${((diagnosis.scores.animalProduct || 0) + (diagnosis.scores.sugarIntake || 0) + (diagnosis.scores.badHabits || 0))}/65</div>
+                                        <div class="font-semibold">総合: ${((diagnosis.scores.physicalSymptom || 0) + (diagnosis.scores.mentalSymptom || 0) + (diagnosis.scores.animalProduct || 0) + (diagnosis.scores.sugarIntake || 0) + (diagnosis.scores.badHabits || 0))}/120</div>
                                     </div>
                                 </div>
                             ` : ''}
@@ -259,10 +259,12 @@
                     <div class="mb-6 p-4 bg-blue-50 rounded-lg">
                         <h3 class="text-lg font-semibold mb-3">評価スコア</h3>
                         <div class="grid md:grid-cols-2 gap-4">
-                            <div>身体症状: ${diagnosis.scores.physicalSymptoms || 0}/25</div>
-                            <div>精神症状: ${diagnosis.scores.mentalSymptoms || 0}/30</div>
-                            <div>食生活: ${diagnosis.scores.dietaryHabits || 0}/65</div>
-                            <div class="font-semibold text-lg">総合スコア: ${diagnosis.scores.total || 0}/120</div>
+                            <div>身体症状: ${diagnosis.scores.physicalSymptom || 0}/25</div>
+                            <div>精神症状: ${diagnosis.scores.mentalSymptom || 0}/30</div>
+                            <div>動物性食品: ${diagnosis.scores.animalProduct || 0}/25</div>
+                            <div>糖質摂取: ${diagnosis.scores.sugarIntake || 0}/20</div>
+                            <div>乱れた食習慣: ${diagnosis.scores.badHabits || 0}/20</div>
+                            <div class="font-semibold text-lg">総合スコア: ${((diagnosis.scores.physicalSymptom || 0) + (diagnosis.scores.mentalSymptom || 0) + (diagnosis.scores.animalProduct || 0) + (diagnosis.scores.sugarIntake || 0) + (diagnosis.scores.badHabits || 0))}/120</div>
                         </div>
                     </div>
                 ` : ''}
@@ -270,8 +272,62 @@
                 <div class="mb-6">
                     <h3 class="text-lg font-semibold mb-3">診断レポート</h3>
                     <div class="prose max-w-none bg-white p-4 rounded-lg border">
-                        ${diagnosis.report ? diagnosis.report.replace(/\n/g, '<br>') : 'レポートがありません'}
+                        ${diagnosis.report && diagnosis.report.summary ? diagnosis.report.summary.replace(/\n/g, '<br>') : 'レポートがありません'}
                     </div>
+                    
+                    ${diagnosis.report && diagnosis.report.analysis ? `
+                        <div class="mt-4 space-y-4">
+                            ${diagnosis.report.analysis.insight ? `
+                                <div class="bg-purple-50 p-4 rounded-lg">
+                                    <h4 class="font-semibold text-purple-900 mb-2">深層的な洞察</h4>
+                                    <p class="text-purple-800">${diagnosis.report.analysis.insight}</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${diagnosis.report.analysis.physical ? `
+                                <div class="bg-green-50 p-4 rounded-lg">
+                                    <h4 class="font-semibold text-green-900 mb-2">身体の状態</h4>
+                                    <p class="text-green-800">${diagnosis.report.analysis.physical}</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${diagnosis.report.analysis.mental ? `
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <h4 class="font-semibold text-blue-900 mb-2">心の状態</h4>
+                                    <p class="text-blue-800">${diagnosis.report.analysis.mental}</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${diagnosis.report.analysis.diet ? `
+                                <div class="bg-orange-50 p-4 rounded-lg">
+                                    <h4 class="font-semibold text-orange-900 mb-2">食生活の評価</h4>
+                                    <p class="text-orange-800">${diagnosis.report.analysis.diet}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                    
+                    ${diagnosis.report && diagnosis.report.plans ? `
+                        <div class="mt-6">
+                            <h4 class="text-lg font-semibold mb-4">改善プラン</h4>
+                            <div class="space-y-4">
+                                ${diagnosis.report.plans.map((plan, index) => `
+                                    <div class="bg-gray-50 p-4 rounded-lg">
+                                        <h5 class="font-semibold text-gray-900 mb-2">プラン${index + 1}: ${plan.title || 'タイトルなし'}</h5>
+                                        <p class="text-gray-700 mb-3">${plan.description || ''}</p>
+                                        ${plan.W1 || plan.W2 || plan.W3 || plan.W4 ? `
+                                            <div class="grid md:grid-cols-2 gap-3 text-sm">
+                                                ${plan.W1 ? `<div><strong>Week 1:</strong> ${plan.W1}</div>` : ''}
+                                                ${plan.W2 ? `<div><strong>Week 2:</strong> ${plan.W2}</div>` : ''}
+                                                ${plan.W3 ? `<div><strong>Week 3:</strong> ${plan.W3}</div>` : ''}
+                                                ${plan.W4 ? `<div><strong>Week 4:</strong> ${plan.W4}</div>` : ''}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
             `;
             
