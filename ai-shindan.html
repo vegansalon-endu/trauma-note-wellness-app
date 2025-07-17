@@ -391,10 +391,60 @@
 
             const auth = firebase.auth();
             const db = firebase.firestore();
+            
+            // Firestoreオフライン対応
+            try {
+                db.enablePersistence({ synchronizeTabs: true })
+                    .then(() => {
+                        console.log('Firestore offline persistence enabled');
+                    })
+                    .catch((err) => {
+                        if (err.code === 'failed-precondition') {
+                            console.log('Firestore persistence failed: Multiple tabs open');
+                        } else if (err.code === 'unimplemented') {
+                            console.log('Firestore persistence not supported');
+                        }
+                    });
+            } catch (error) {
+                console.log('Firestore offline persistence setup failed:', error);
+            }
 
             const authCheckElement = document.getElementById('auth-check');
             const mainContainer = document.getElementById('main-container');
             const logoutButton = document.getElementById('logout-button');
+            
+            // Firestore保存の再試行機能
+            const saveToFirestoreWithRetry = async (data, userId, maxRetries = 3) => {
+                for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                    try {
+                        await db.collection('users').doc(userId).collection('ai_diagnoses').add(data);
+                        console.log('データベース保存成功');
+                        return;
+                    } catch (error) {
+                        console.error(`データベース保存失敗 (試行 ${attempt}/${maxRetries}):`, error);
+                        
+                        if (attempt === maxRetries) {
+                            // 最後の試行でも失敗した場合は、ローカルストレージに保存
+                            const fallbackData = {
+                                ...data,
+                                createdAt: new Date().toISOString(),
+                                userId: userId,
+                                savedToFirestore: false
+                            };
+                            
+                            const existingData = JSON.parse(localStorage.getItem('ai_diagnoses_backup') || '[]');
+                            existingData.push(fallbackData);
+                            localStorage.setItem('ai_diagnoses_backup', JSON.stringify(existingData));
+                            
+                            console.log('データをローカルストレージに保存しました');
+                            throw new Error('データベース保存に失敗しました。診断結果はローカルに保存されています。');
+                        }
+                        
+                        // 再試行前に少し待つ
+                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                    }
+                }
+            };
 
             // 認証状態の確認
             auth.onAuthStateChanged(user => {
@@ -506,7 +556,8 @@
                          createdAt: firebase.firestore.FieldValue.serverTimestamp()
                      };
                      
-                     await db.collection('users').doc(user.uid).collection('ai_diagnoses').add(saveData);
+                     // データベース保存（再試行機能付き）
+                     await saveToFirestoreWithRetry(saveData, user.uid);
                     
                      displayReport(postData.name, aiReport);
                      resultArea.classList.add('hidden');
@@ -776,6 +827,11 @@
                     const usageKey = `gemini_usage_${today}`;
                     const todayUsage = parseInt(localStorage.getItem(usageKey) || '0');
                     
+                    // 使用量制限チェック（1日50回まで）
+                    if (todayUsage >= 50) {
+                        throw new Error('USAGE_LIMIT_EXCEEDED');
+                    }
+                    
                     // Gemini API直接呼び出し
                     const apiKey = "AIzaSyB2_fG2KexNapPvM0gA-AThGu5SK6WFLPA";
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
@@ -910,9 +966,19 @@
                 } catch (error) {
                     console.error('AI報告書生成エラー:', error);
                     
+                    // 使用量制限の場合
+                    if (error.message === 'USAGE_LIMIT_EXCEEDED') {
+                        throw new Error('本日のAI診断回数上限に達しました。明日再度お試しください。');
+                    }
+                    
                     // ネットワークエラーの場合
                     if (error.name === 'TypeError' && error.message.includes('fetch')) {
                         throw new Error('ネットワークエラーが発生しました。インターネット接続を確認してください。');
+                    }
+                    
+                    // タイムアウトエラーの場合
+                    if (error.name === 'AbortError' || error.message.includes('timeout')) {
+                        throw new Error('処理がタイムアウトしました。しばらく時間をおいてからお試しください。');
                     }
                     
                     // その他のエラーは元のメッセージを保持
