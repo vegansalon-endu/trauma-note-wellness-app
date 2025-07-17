@@ -319,7 +319,7 @@
                             </div>
                             
                             <!-- AI評価コメント表示エリア -->
-                            <div id="ai-food-comment" class="hidden p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-200">
+                            <div id="ai-food-comment" class="hidden p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-200 max-w-full">
                                 <div class="flex justify-between items-center mb-2">
                                     <h4 class="font-semibold text-sm flex items-center">
                                         <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">🤖</span>
@@ -329,10 +329,19 @@
                                         再評価
                                     </button>
                                 </div>
-                                <div id="ai-comment-content" class="text-sm space-y-2">
-                                    <p id="overall-comment" class="font-medium"></p>
-                                    <p id="timing-comment" class="text-gray-600"></p>
-                                    <p id="advice-comment" class="text-blue-600"></p>
+                                <div id="ai-comment-content" class="text-sm space-y-3 grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                    <div class="bg-white bg-opacity-60 rounded p-3">
+                                        <div class="text-xs text-gray-500 mb-1">総合評価</div>
+                                        <p id="overall-comment" class="font-medium text-gray-800"></p>
+                                    </div>
+                                    <div class="bg-white bg-opacity-60 rounded p-3">
+                                        <div class="text-xs text-gray-500 mb-1">タイミング</div>
+                                        <p id="timing-comment" class="text-gray-700"></p>
+                                    </div>
+                                    <div class="bg-white bg-opacity-60 rounded p-3">
+                                        <div class="text-xs text-gray-500 mb-1">アドバイス</div>
+                                        <p id="advice-comment" class="text-blue-700"></p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -629,7 +638,7 @@
                 </div>
             </div>
             
-            <div class="calendar-grid">
+            <div id="calendar-container" class="calendar-grid">
                 <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">日</div>
                 <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">月</div>
                 <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">火</div>
@@ -637,7 +646,6 @@
                 <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">木</div>
                 <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">金</div>
                 <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">土</div>
-                <div id="calendar-days"></div>
             </div>
         </div>
 
@@ -764,7 +772,7 @@
             const currentMonthElement = document.getElementById('current-month');
             const prevMonthButton = document.getElementById('prev-month');
             const nextMonthButton = document.getElementById('next-month');
-            const calendarDaysContainer = document.getElementById('calendar-days');
+            const calendarDaysContainer = document.getElementById('calendar-container');
             const recordModal = document.getElementById('record-modal');
             const closeModal = document.getElementById('close-modal');
             const modalDate = document.getElementById('modal-date');
@@ -1385,7 +1393,16 @@
                 const today = new Date();
                 const todayKey = formatDateKey(today);
                 
-                let calendarHtml = '';
+                // 曜日ヘッダーから開始
+                let calendarHtml = `
+                    <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">日</div>
+                    <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">月</div>
+                    <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">火</div>
+                    <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">水</div>
+                    <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">木</div>
+                    <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">金</div>
+                    <div class="calendar-day font-bold text-center py-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">土</div>
+                `;
                 
                 for (let i = 0; i < 42; i++) {
                     const cellDate = new Date(startDate);
